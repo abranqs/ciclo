@@ -480,6 +480,61 @@ EXT.paginas.push({
 });
 
 /* ------------------------------------------------------------------------- */
+/* Campo "Trajeto" das paginas de dados: o mesmo satelite da tela de rota     */
+/* ------------------------------------------------------------------------- */
+
+/* Antes o campo desenhava so a linha num canvas, sem fundo — e parecia que o
+ * satelite "nao carregava". Agora e um mapa Leaflet pequeno com a mesma
+ * camada escolhida na tela de rota, o trajeto feito e a rota ativa. Sem
+ * Leaflet (nao deveria acontecer), cai no desenho antigo. */
+const MAPAS_CAMPO = [];
+const desenharMapaCanvas = desenharMapa;
+desenharMapa = function (cv) {
+  const el = cv.parentElement;
+  if (typeof L === "undefined") return desenharMapaCanvas(cv);
+  for (let i = MAPAS_CAMPO.length - 1; i >= 0; i--) {
+    if (!MAPAS_CAMPO[i].el.isConnected) { MAPAS_CAMPO[i].mapa.remove(); MAPAS_CAMPO.splice(i, 1); }
+  }
+  let m = MAPAS_CAMPO.find((x) => x.el === el);
+  if (!m) {
+    cv.style.display = "none";
+    const div = document.createElement("div");
+    div.className = "mapaLeaflet";
+    el.appendChild(div);
+    const mapa = L.map(div, { zoomControl: false, attributionControl: false, preferCanvas: true });
+    mapa.setView(S.gps.lat != null ? [S.gps.lat, S.gps.lon] : [-22.72, -47.65], 15);
+    m = { el, mapa, camada: null, layer: null, track: L.polyline([], { color: "#3aa0ff", weight: 4 }).addTo(mapa),
+          rota: null, rotaId: null, pos: null, seguir: true };
+    mapa.on("dragstart", () => { m.seguir = false; });
+    mapa.on("dblclick", () => { m.seguir = true; });
+    div.addEventListener("touchstart", (e) => e.stopPropagation(), { passive: true });
+    div.addEventListener("touchend", (e) => e.stopPropagation());
+    MAPAS_CAMPO.push(m);
+    setTimeout(() => mapa.invalidateSize(), 60);
+  }
+  if (m.camada !== ROTA.camada) {
+    if (m.layer) m.mapa.removeLayer(m.layer);
+    m.layer = camadas()[ROTA.camada]().addTo(m.mapa);
+    m.camada = ROTA.camada;
+  }
+  const idRota = ROTA.ativa ? ROTA.ativa.id : null;
+  if (m.rotaId !== idRota) {
+    if (m.rota) m.mapa.removeLayer(m.rota);
+    m.rota = idRota ? L.polyline(ROTA.ativa.pts.map((p) => [p[0], p[1]]), { color: "#ff7a3d", weight: 5, opacity: 0.9 }).addTo(m.mapa) : null;
+    m.rotaId = idRota;
+  }
+  m.track.setLatLngs(R.track.map((p) => [p.lat, p.lon]));
+  if (S.gps.lat != null) {
+    const ll = [S.gps.lat, S.gps.lon];
+    if (!m.pos) m.pos = L.circleMarker(ll, { radius: 8, color: "#fff", weight: 3, fillColor: "#3aa0ff", fillOpacity: 1 }).addTo(m.mapa);
+    else m.pos.setLatLng(ll);
+    if (m.seguir) { const z = m.mapa.getZoom(); m.mapa.setView(ll, z >= 12 && z <= 18 ? z : 15, { animate: false }); }
+  } else if (m.rota && m.seguir) {
+    m.mapa.fitBounds(m.rota.getBounds(), { padding: [12, 12] }); m.seguir = false;
+  }
+};
+
+/* ------------------------------------------------------------------------- */
 /* Google Earth e Google Maps                                                 */
 /* ------------------------------------------------------------------------- */
 

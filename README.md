@@ -7,7 +7,8 @@ App web instalável (PWA) para Android que faz o papel de um Edge no guidão:
 - **Cadência/velocidade por Bluetooth**: sensores no padrão CSC, como o XOSS
 - **Zonas de Karvonen** (FCmax 185 / repouso 57, ajustáveis) com a cor da zona no campo de FC
 - **Alertas de FC** acima ou abaixo de um limite, com bipe e vibração
-- **Voltas, pausa automática, 5 páginas de campos**: segure um campo para trocá-lo
+- **Páginas de campos à sua escolha**: segure um campo para trocá-lo, adicionar ou remover campos (até 12 espaços por página), mudar largura, altura e ordem, ou criar e apagar páginas (até 10)
+- **Voltas e pausa automática**
 - **Gravação à prova de queda**: salva a cada 10 s; se o navegador fechar, o pedal volta pausado
 - **Exporta TCX** para o Garmin Connect e o Strava (FC, cadência, trajeto, voltas)
 - **Funciona sem internet** depois de instalado

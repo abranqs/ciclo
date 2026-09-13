@@ -9,7 +9,7 @@
  */
 "use strict";
 
-const VERSAO = "1.2.1";
+const VERSAO = "1.2.2";
 
 /* Pontos de extensao: rotas.js, treinos.js, sync.js e estrada.js se penduram aqui. */
 const EXT = { tick: [], volta: [], iniciar: [], encerrar: [], paginas: [], menu: [] };
@@ -801,26 +801,71 @@ function abrirMenu() {
   abrir("dlgMenu");
 }
 
+/* Cada página tem 12 espaços (2 colunas x 6 linhas): campo de meia largura
+ * ocupa 1, largura inteira 2, altura dupla dobra. */
+const ESPACOS = 12;
+const espacos = (c) => (c.full ? 2 : 1) * (c.tall ? 2 : 1);
+const usados = (pg) => pg.reduce((a, c) => a + espacos(c), 0);
+
 function abrirTroca(p, idx) {
-  const atual = cfg.pages[p][idx].k;
+  const pg = cfg.pages[p], campo = pg[idx], atual = campo.k;
   const body = $("#pickBody"); body.innerHTML = "";
+  $("#dlgPick h2").textContent = "Página " + (p + 1) + " · campo " + (idx + 1);
+  const refazer = (fechar, alvo) => {
+    salvarCfg(); montarPaginas();
+    if (fechar) $("#dlgPick").close(); else abrirTroca(alvo ? alvo[0] : p, alvo ? alvo[1] : idx);
+  };
+  const acao = (txt, fn, ok = true) => {
+    const b = document.createElement("button");
+    b.textContent = txt; b.disabled = !ok; b.className = "acao";
+    b.addEventListener("click", fn); body.appendChild(b);
+  };
+  const livre = ESPACOS - usados(pg);
+  const dica = document.createElement("p");
+  dica.className = "hint"; dica.style.gridColumn = "span 2"; dica.style.margin = "0 0 4px";
+  dica.textContent = pg.length + " campos · " + (ESPACOS - livre) + " de " + ESPACOS + " espaços usados · " + cfg.pages.length + " páginas";
+  body.appendChild(dica);
+
+  acao("＋ Campo depois deste", () => {
+    const naPagina = new Set(pg.map((c) => c.k));
+    const k = ["speed", "dist", "time", "hr", "cad", "avgspeed", "clock", "alt", "grade", "gain"].find((x) => !naPagina.has(x)) || "clock";
+    pg.splice(idx + 1, 0, { k });
+    refazer(false, [p, idx + 1]);
+    toast("Campo novo — escolha abaixo o que ele mostra", 2600);
+  }, livre >= 1);
+  acao("− Remover este campo", () => { pg.splice(idx, 1); refazer(true); }, pg.length > 1);
+  acao(campo.full ? "↔ Meia largura" : "↔ Largura inteira", () => { campo.full = campo.full ? 0 : 1; refazer(false); }, campo.full || livre >= espacos(campo));
+  acao(campo.tall ? "↕ Altura simples" : "↕ Altura dupla", () => { campo.tall = campo.tall ? 0 : 1; refazer(false); }, campo.tall || livre >= espacos(campo));
+  acao("◀ Mover antes", () => { pg.splice(idx - 1, 0, pg.splice(idx, 1)[0]); refazer(false, [p, idx - 1]); }, idx > 0);
+  acao("Mover depois ▶", () => { pg.splice(idx + 1, 0, pg.splice(idx, 1)[0]); refazer(false, [p, idx + 1]); }, idx < pg.length - 1);
+  acao("＋ Página nova", () => {
+    cfg.pages.splice(p + 1, 0, [{ k: "speed" }, { k: "dist" }, { k: "time" }, { k: "hr" }]);
+    S.page = paginasExt().length + p + 1;
+    refazer(true);
+    toast("Página nova criada — segure um campo para mudar", 3000);
+  }, cfg.pages.length < 10);
+  acao("Apagar página", () => {
+    if (!confirm("Apagar a página " + (p + 1) + " com " + pg.length + " campos?")) return;
+    cfg.pages.splice(p, 1);
+    S.page = Math.max(0, S.page - 1);
+    refazer(true);
+  }, cfg.pages.length > 1);
+
+  const h = document.createElement("h3");
+  h.textContent = "Mostrar neste campo"; h.style.gridColumn = "span 2";
+  body.appendChild(h);
   Object.entries(CAMPOS).forEach(([k, def]) => {
     const b = document.createElement("button");
     b.textContent = def.lb; if (k === atual) b.className = "on";
     b.addEventListener("click", () => {
-      cfg.pages[p][idx].k = k;
-      if (k === "map") { cfg.pages[p][idx].full = 1; cfg.pages[p][idx].tall = 1; }
-      if (k === "zonebar" || CAMPOS[k].full) cfg.pages[p][idx].full = 1;
-      if (CAMPOS[k].tall) cfg.pages[p][idx].tall = 1;
-      salvarCfg(); montarPaginas(); $("#dlgPick").close();
+      campo.k = k;
+      if (k === "map") { campo.full = 1; campo.tall = 1; }
+      if (k === "zonebar" || CAMPOS[k].full) campo.full = 1;
+      if (CAMPOS[k].tall) campo.tall = 1;
+      refazer(true);
     });
     body.appendChild(b);
   });
-  const lg = document.createElement("button");
-  lg.textContent = cfg.pages[p][idx].full ? "↔ Meia largura" : "↔ Largura inteira";
-  lg.style.gridColumn = "span 2";
-  lg.addEventListener("click", () => { cfg.pages[p][idx].full = cfg.pages[p][idx].full ? 0 : 1; salvarCfg(); montarPaginas(); $("#dlgPick").close(); });
-  body.appendChild(lg);
   abrir("dlgPick");
 }
 
@@ -847,7 +892,7 @@ function abrirAjustes() {
     L("sound", "Bipes", "", C("sound", cfg.sound)) +
     L("vibrate", "Vibrar", "", C("vibrate", cfg.vibrate)) +
     L("theme", "Tema", "claro é melhor sob sol forte", '<select id="theme"><option value="dark"' + (cfg.theme === "dark" ? " selected" : "") + '>Escuro</option><option value="light"' + (cfg.theme === "light" ? " selected" : "") + ">Claro</option></select>") +
-    '<p class="hint">Segure qualquer campo da tela para trocá-lo. Deslize para os lados para mudar de página.</p>' +
+    '<p class="hint">Segure qualquer campo da tela para trocá-lo, <b>adicionar ou remover campos</b> (até 12 espaços por página), mudar tamanho e ordem, ou criar e apagar páginas. Deslize para os lados para mudar de página.</p>' +
     '<div class="row"><label>Páginas<small>volta aos campos originais</small></label><button class="x" id="resetPages">Restaurar</button></div>' +
     '<p class="hint">Ciclo ' + VERSAO + (DEMO ? " · modo demonstração" : "") + "</p>";
   const num = (id, def) => { const v = Number($("#" + id).value); return isFinite(v) && v > 0 ? v : def; };

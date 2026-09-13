@@ -2,15 +2,17 @@
  *  - abre sem internet (no meio do pedal pode nao ter sinal);
  *  - guarda os blocos de mapa ja vistos, para a rota nao ficar sem fundo
  *    quando o sinal cai;
+ *  - guarda estradas (OpenFreeMap) e relevo (Terrarium) da "Estrada a frente";
  *  - recebe arquivos do "Compartilhar" do Android (share target).
  */
-const VERSAO = "ciclo-1.1.3";
+const VERSAO = "ciclo-1.2.0";
 const MAPAS = "ciclo-mapas-1";
 const RECEBIDOS = "ciclo-recebidos";
-const ARQUIVOS = ["./", "./index.html", "./app.js", "./rotas.js", "./treinos.js", "./sync.js", "./manifest.webmanifest",
+const TERRENO = "ciclo-terreno-1";
+const ARQUIVOS = ["./", "./index.html", "./app.js", "./rotas.js", "./treinos.js", "./sync.js", "./estrada.js", "./manifest.webmanifest",
   "./icons/icon-192.png", "./icons/icon-512.png", "./vendor/leaflet/leaflet.js", "./vendor/leaflet/leaflet.css"];
 const HOSTS_MAPA = ["server.arcgisonline.com", "tile.openstreetmap.org", "a.tile.opentopomap.org", "b.tile.opentopomap.org", "c.tile.opentopomap.org"];
-const MAX_BLOCOS = 3000;
+const MAX_BLOCOS = 3000, MAX_TERRENO = 1500;
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(VERSAO).then((c) => c.addAll(ARQUIVOS)).then(() => self.skipWaiting()));
@@ -18,7 +20,7 @@ self.addEventListener("install", (e) => {
 
 self.addEventListener("activate", (e) => {
   e.waitUntil(caches.keys()
-    .then((ks) => Promise.all(ks.filter((k) => k.startsWith("ciclo-") && ![VERSAO, MAPAS, RECEBIDOS].includes(k)).map((k) => caches.delete(k))))
+    .then((ks) => Promise.all(ks.filter((k) => k.startsWith("ciclo-") && ![VERSAO, MAPAS, RECEBIDOS, TERRENO].includes(k)).map((k) => caches.delete(k))))
     .then(() => self.clients.claim()));
 });
 
@@ -49,6 +51,21 @@ async function blocoDeMapa(req) {
   }
 }
 
+/* Estradas e relevo mudam pouco: guardados sem prazo. A chave das estradas
+ * ignora a versao do mapa no endereco, para o que ja foi baixado continuar
+ * valendo quando o OpenFreeMap publica uma versao nova. */
+async function blocoDeTerreno(req, chave) {
+  const c = await caches.open(TERRENO);
+  const hit = await c.match(chave);
+  if (hit) return hit;
+  const r = await fetch(req);
+  if (r.ok) {
+    c.put(chave, r.clone());
+    c.keys().then((ks) => { if (ks.length > MAX_TERRENO) ks.slice(0, ks.length - MAX_TERRENO).forEach((k) => c.delete(k)); });
+  }
+  return r;
+}
+
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method === "POST" && url.origin === location.origin && url.pathname.endsWith("/receber")) {
@@ -57,6 +74,14 @@ self.addEventListener("fetch", (e) => {
   }
   if (e.request.method !== "GET") return;
   if (HOSTS_MAPA.includes(url.hostname)) { e.respondWith(blocoDeMapa(e.request)); return; }
+  if (url.hostname === "tiles.openfreemap.org" && url.pathname.endsWith(".pbf")) {
+    e.respondWith(blocoDeTerreno(e.request, url.origin + url.pathname.replace(/^\/planet\/[^/]+\//, "/planet/_/")));
+    return;
+  }
+  if (url.hostname === "s3.amazonaws.com" && url.pathname.startsWith("/elevation-tiles-prod/")) {
+    e.respondWith(blocoDeTerreno(e.request, url.href));
+    return;
+  }
   if (url.origin !== location.origin) return;
   // App: rede primeiro (pega versao nova quando ha sinal), cache quando nao ha.
   e.respondWith(

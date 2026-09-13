@@ -50,6 +50,11 @@
   .f.stale .v{opacity:.35}
   .f canvas{position:absolute;inset:0;width:100%;height:100%}
   .zb{width:100%;padding:4px 6px}
+  .f[data-k="estrada"]{justify-content:flex-start;align-items:stretch}
+  .eTxt{position:relative;z-index:1;padding:2px 4px;line-height:1.15;text-shadow:0 1px 3px var(--bg)}
+  .eTxt b{display:block;font-size:clamp(17px,5.4vw,26px);font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .eTxt span{display:block;font-size:14px;font-weight:600;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .eFonte{position:absolute;right:8px;bottom:2px;z-index:1;font-size:10px;color:var(--mute);font-weight:600}
   .zb .bar{display:flex;height:22px;border-radius:6px;overflow:hidden;background:var(--line)}
   .zb .bar span{height:100%}
   .zb .leg{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;margin-top:6px;font-size:12px;text-align:center}
@@ -259,5 +264,6 @@
 <script src="rotas.js"></script>
 <script src="treinos.js"></script>
 <script src="sync.js"></script>
+<script src="estrada.js"></script>
 </body>
 </html>

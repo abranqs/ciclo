@@ -9,9 +9,9 @@
  */
 "use strict";
 
-const VERSAO = "1.1.3";
+const VERSAO = "1.2.0";
 
-/* Pontos de extensao: rotas.js, treinos.js e sync.js se penduram aqui. */
+/* Pontos de extensao: rotas.js, treinos.js, sync.js e estrada.js se penduram aqui. */
 const EXT = { tick: [], volta: [], iniciar: [], encerrar: [], paginas: [], menu: [] };
 const $ = (s) => document.querySelector(s);
 const DEMO = new URLSearchParams(location.search).has("demo");
@@ -31,7 +31,7 @@ const PAGINAS_PADRAO = [
 const CFG_PADRAO = {
   fcmax: 185, fcrep: 57,
   ceilOn: false, ceil: 146, floorOn: false, floor: 134,
-  autopause: true, apKmh: 3,
+  autopause: true, apKmh: 3, avisoSubida: true,
   wheelMm: 2105,
   wake: true, vibrate: true, sound: true,
   theme: "dark",
@@ -565,6 +565,7 @@ function montarPaginas() {
       el.className = "f" + (c.full ? " full" : "") + (c.tall ? " tall" : "");
       el.dataset.k = c.k; el.dataset.i = idx;
       if (def.especial === "mapa") el.innerHTML = '<canvas></canvas>';
+      else if (def.html) el.innerHTML = def.html;
       else if (def.especial === "zonas") el.innerHTML = '<div class="lb">' + def.lb + '</div><div class="zb"><div class="bar"></div><div class="leg num"></div></div>';
       else el.innerHTML = '<div class="lb">' + def.lb + '</div><div class="v num"></div><div class="u"></div>';
       segurar(el, () => abrirTroca(p, idx));
@@ -649,6 +650,7 @@ function render() {
     sec.querySelectorAll(".f").forEach((el) => {
       const def = CAMPOS[el.dataset.k] || CAMPOS.dist;
       if (def.especial === "mapa") return desenharMapa(el.querySelector("canvas"));
+      if (def.desenhar) return def.desenhar(el);
       if (def.especial === "zonas") return desenharZonas(el);
       el.querySelector(".v").textContent = def.v();
       el.querySelector(".u").textContent = typeof def.u === "function" ? def.u() : def.u;
@@ -808,7 +810,7 @@ function abrirTroca(p, idx) {
     b.addEventListener("click", () => {
       cfg.pages[p][idx].k = k;
       if (k === "map") { cfg.pages[p][idx].full = 1; cfg.pages[p][idx].tall = 1; }
-      if (k === "zonebar") cfg.pages[p][idx].full = 1;
+      if (k === "zonebar" || CAMPOS[k].full) cfg.pages[p][idx].full = 1;
       salvarCfg(); montarPaginas(); $("#dlgPick").close();
     });
     body.appendChild(b);
@@ -837,6 +839,7 @@ function abrirAjustes() {
     L("floorOn", "Avisar abaixo de", "depois de 20 s abaixo, pedalando", '<span>' + C("floorOn", cfg.floorOn) + " " + N("floor", cfg.floor, 60, 200) + "</span>") +
     "<h3>Pedal</h3>" +
     L("autopause", "Pausa automática", "abaixo da velocidade ao lado (km/h)", '<span>' + C("autopause", cfg.autopause) + " " + N("apKmh", cfg.apKmh, 1, 10) + "</span>") +
+    L("avisoSubida", "Avisar subida à frente", "bipe ~400 m antes de subidas de 300 m ou mais, com ou sem rota", C("avisoSubida", cfg.avisoSubida)) +
     L("wheelMm", "Circunferência da roda (mm)", "só com sensor de velocidade · 700x25c 2105 · 700x28c 2136 · 29x2.2 2326", N("wheelMm", cfg.wheelMm, 1000, 2600)) +
     "<h3>Aparelho</h3>" +
     L("wake", "Manter tela ligada", "com a tela apagada o navegador para de gravar", C("wake", cfg.wake)) +
@@ -852,7 +855,7 @@ function abrirAjustes() {
     cfg.ceilOn = $("#ceilOn").checked; cfg.ceil = num("ceil", cfg.ceil);
     cfg.floorOn = $("#floorOn").checked; cfg.floor = num("floor", cfg.floor);
     cfg.autopause = $("#autopause").checked; cfg.apKmh = num("apKmh", cfg.apKmh);
-    cfg.wheelMm = num("wheelMm", cfg.wheelMm);
+    cfg.wheelMm = num("wheelMm", cfg.wheelMm); cfg.avisoSubida = $("#avisoSubida").checked;
     cfg.wake = $("#wake").checked; cfg.sound = $("#sound").checked; cfg.vibrate = $("#vibrate").checked;
     cfg.theme = $("#theme").value;
     document.documentElement.dataset.theme = cfg.theme;

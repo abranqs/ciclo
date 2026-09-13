@@ -23,6 +23,17 @@ Endereço: https://abranqs.github.io/ciclo/ · teste sem sensores: https://abran
 
 O que funciona sem internet: treino, linha da rota, curvas, desvio e altimetria. O fundo do mapa precisa de sinal; o que você já viu fica guardado.
 
+## Estrada à frente (sem rota)
+
+Campo embaixo do mapa, na 4ª página. Mostra o perfil dos próximos 2,5 km da estrada em que você está, colorido pela inclinação, com a frase do trecho atual e do próximo: "Subindo +4.8% por 250 m · subida em 700 m: 1.1 km a +6.0%". Quando você se aproxima de uma subida de 300 m ou mais, soa um bipe com o aviso, ~400 m antes. O aviso pode ser desligado em Ajustes.
+
+- **Estradas**: OpenStreetMap, em blocos do OpenFreeMap. O app casa o GPS e o seu sentido com a via e segue por ela. Em cada cruzamento, continua na mesma via; se ela acaba, pega a saída mais reta, sem trocar rua por trilha. Num T, ou numa bifurcação sem saída óbvia, a previsão para no cruzamento.
+- **No mapa**: a estrada assumida aparece tracejada em amarelo. Se não for por onde você vai, ignore o perfil até entrar na outra via; ele se refaz em 3 s.
+- **Relevo**: SRTM de 30 m (blocos Terrarium da AWS). Pontes e túneis são interpolados.
+- **Com rota ativa** e você sobre ela, o perfil vem da rota.
+- **Teste em 4 rotas reais** (Mandacaru, Águas–Patrimônio, Vinhedo, Inconfidentes), com a rota desligada: a previsão seguiu a estrada certa por 1,5 a 2,5 km na mediana. O erro de altitude relativa ficou entre 2 e 4 m na mediana, e entre 6 e 13 m em 90% dos pontos.
+- Estradas e relevo já vistos ficam guardados no celular. Área nova precisa de internet (~100–300 kB por bloco de 2,3 km).
+
 ## Instalar
 
 1. No Android, abra o endereço no **Chrome**.

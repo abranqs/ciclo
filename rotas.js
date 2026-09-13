@@ -463,8 +463,8 @@ EXT.paginas.push({
     else if (fora) { sec.querySelector("#rSeta").textContent = "⚠"; sec.querySelector("#rCueD").textContent = Math.round(ROTA.desvio) + " m"; sec.querySelector("#rCueT").textContent = "fora da rota"; }
     else if (prox) { sec.querySelector("#rSeta").textContent = SETA[prox.dir]; sec.querySelector("#rCueD").textContent = fmtDist(prox.d - ROTA.prog); sec.querySelector("#rCueT").textContent = textoCurva(prox) + (prox.aprox ? "" : ""); }
     else { sec.querySelector("#rSeta").textContent = "↑"; sec.querySelector("#rCueD").textContent = fmtDist(falta); sec.querySelector("#rCueT").textContent = "até o fim"; }
-    const g = inclinacaoAFrente(r);
-    sec.querySelector("#rDes").textContent = g == null ? "" : (g >= 0 ? "↗ " : "↘ ") + g.toFixed(1) + "% nos próximos 400 m";
+    const g = inclinacaoAFrente(r), rel = typeof textoRelevo === "function" ? textoRelevo() : "";
+    sec.querySelector("#rDes").textContent = rel || (g == null ? "" : (g >= 0 ? "↗ " : "↘ ") + g.toFixed(1) + "% nos próximos 400 m");
     if (!visivel) return;
     desenharPerfil(sec.querySelector("#rPerfil"), r);
     const m = ROTA.mapa; if (!m) return;

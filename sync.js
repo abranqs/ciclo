@@ -23,9 +23,30 @@ async function ghArquivo(caminho) {
   });
   if (r.status === 401) throw new Error("token inválido ou expirado");
   if (r.status === 403) throw new Error("token sem permissão de leitura no repositório");
-  if (r.status === 404) throw new Error("não achei " + caminho + " em " + SYNC.repo + " (confira o repositório e se o token enxerga ele)");
+  if (r.status === 404) throw new Error(await diagnosticar404(caminho));
   if (!r.ok) throw new Error("GitHub respondeu " + r.status);
   return r;
+}
+
+/* O GitHub responde 404 (e nao 403) quando o token nao enxerga um repositorio
+ * privado — "nao achei o arquivo" soa como arquivo faltando, mas quase sempre
+ * e o token. Aqui se separa: token invalido, repo fora do token, ou repo
+ * visivel sem a permissao Contents. */
+async function diagnosticar404(caminho) {
+  const h = { Authorization: "Bearer " + SYNC.token, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
+  try {
+    const u = await fetch("https://api.github.com/user", { headers: h, cache: "no-store" });
+    const conta = u.ok ? (await u.json()).login : null;
+    const repo = await fetch("https://api.github.com/repos/" + SYNC.repo, { headers: h, cache: "no-store" });
+    if (repo.status === 404) {
+      return "o token" + (conta ? " (conta " + conta + ")" : "") + " não tem acesso ao repositório " + SYNC.repo +
+        ". Edite o token no GitHub: Repository access → Only select repositories → marque ciclo-dados";
+    }
+    if (repo.ok) {
+      return "o token vê o repositório, mas não pode ler arquivos. Edite o token: Permissions → Repository permissions → Contents → Read-only";
+    }
+  } catch {}
+  return "não achei " + caminho + " em " + SYNC.repo;
 }
 
 async function sincronizar(silencioso) {

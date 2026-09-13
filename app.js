@@ -9,7 +9,10 @@
  */
 "use strict";
 
-const VERSAO = "1.0.0";
+const VERSAO = "1.1.0";
+
+/* Pontos de extensao: rotas.js, treinos.js e sync.js se penduram aqui. */
+const EXT = { tick: [], volta: [], iniciar: [], encerrar: [], paginas: [], menu: [] };
 const $ = (s) => document.querySelector(s);
 const DEMO = new URLSearchParams(location.search).has("demo");
 
@@ -325,8 +328,13 @@ let dbp = null;
 function idb() {
   if (dbp) return dbp;
   dbp = new Promise((res, rej) => {
-    const r = indexedDB.open("ciclo", 1);
-    r.onupgradeneeded = () => r.result.createObjectStore("chunks", { keyPath: ["ride", "i"] });
+    const r = indexedDB.open("ciclo", 2);
+    r.onupgradeneeded = () => {
+      const d = r.result, tem = (n) => d.objectStoreNames.contains(n);
+      if (!tem("chunks")) d.createObjectStore("chunks", { keyPath: ["ride", "i"] });
+      if (!tem("rotas")) d.createObjectStore("rotas", { keyPath: "id" });
+      if (!tem("treinos")) d.createObjectStore("treinos", { keyPath: "id" });
+    };
     r.onsuccess = () => res(r.result);
     r.onerror = () => rej(r.error);
   });
@@ -386,11 +394,13 @@ function iniciar() {
   if (R.state === "idle") { R.startT = agora(); novaVolta(R.startT); }
   R.state = "running"; R.lastTick = agora(); R.slowS = 0;
   beep(988, 120, 1);
+  EXT.iniciar.forEach((f) => f());
   salvarMeta(); render();
 }
 function pausar() { R.state = "paused"; beep(660, 160, 1); gravarChunk(); salvarMeta(); render(); }
 function volta() {
   if (R.state !== "running" && R.state !== "autopaused") return;
+  for (const f of EXT.volta) if (f()) return;       // com treino ativo, Volta avanca o passo
   novaVolta(agora());
   beep(1175, 110, 2);
   toast("Volta " + lapAtual().n);
@@ -403,6 +413,7 @@ async function encerrar() {
   await gravarChunk();
   salvarMeta();
   beep(784, 200, 2);
+  EXT.encerrar.forEach((f) => f());
   render(); abrirResumo();
 }
 
@@ -466,6 +477,7 @@ function tick() {
 
     if (t % 5000 < 1000) salvarMeta();
   }
+  EXT.tick.forEach((f) => { try { f(t); } catch (e) { console.error(e); } });
   R.lastTick = t;
   render();
 }
@@ -519,17 +531,28 @@ const CAMPOS = {
 /* Paginas                                                                    */
 /* ------------------------------------------------------------------------- */
 
+function paginasExt() { return EXT.paginas.filter((x) => x.ativa()); }
+function nPaginas() { return paginasExt().length + cfg.pages.length; }
+
 function montarPaginas() {
   const main = $("#pages"); main.innerHTML = "";
   const dots = $("#dots"); dots.innerHTML = "";
+  let pos = 0;
+  paginasExt().forEach((x) => {
+    const sec = document.createElement("section");
+    sec.className = "page ext"; sec.dataset.p = pos++; sec.dataset.ext = x.nome;
+    x.montar(sec);
+    main.appendChild(sec);
+    dots.appendChild(document.createElement("i"));
+  });
   cfg.pages.forEach((campos, p) => {
     const sec = document.createElement("section");
-    sec.className = "page"; sec.dataset.p = p;
+    sec.className = "page"; sec.dataset.p = pos++;
     campos.forEach((c, idx) => {
       const def = CAMPOS[c.k] || CAMPOS.dist;
       const el = document.createElement("div");
       el.className = "f" + (c.full ? " full" : "") + (c.tall ? " tall" : "");
-      el.dataset.k = c.k; el.dataset.p = p; el.dataset.i = idx;
+      el.dataset.k = c.k; el.dataset.i = idx;
       if (def.especial === "mapa") el.innerHTML = '<canvas></canvas>';
       else if (def.especial === "zonas") el.innerHTML = '<div class="lb">' + def.lb + '</div><div class="zb"><div class="bar"></div><div class="leg num"></div></div>';
       else el.innerHTML = '<div class="lb">' + def.lb + '</div><div class="v num"></div><div class="u"></div>';
@@ -537,9 +560,9 @@ function montarPaginas() {
       sec.appendChild(el);
     });
     main.appendChild(sec);
-    const d = document.createElement("i"); dots.appendChild(d);
+    dots.appendChild(document.createElement("i"));
   });
-  S.page = Math.min(S.page, cfg.pages.length - 1);
+  S.page = Math.max(0, Math.min(S.page, nPaginas() - 1));
   posicionar();
 }
 
@@ -548,9 +571,11 @@ function posicionar() {
     s.style.transform = "translateX(" + (Number(s.dataset.p) - S.page) * 100 + "%)";
   });
   document.querySelectorAll("#dots i").forEach((d, i) => d.classList.toggle("on", i === S.page));
+  const vis = document.querySelector('.page[data-p="' + S.page + '"]');
+  if (vis && vis.dataset.ext) { const x = EXT.paginas.find((e) => e.nome === vis.dataset.ext); if (x && x.visivel) x.visivel(vis); }
   render();
 }
-function irPara(p) { S.page = (p + cfg.pages.length) % cfg.pages.length; posicionar(); }
+function irPara(p) { const n = nPaginas(); S.page = (p + n) % n; posicionar(); }
 
 (function gestos() {
   const m = $("#pages"); let x0 = null, y0 = null;
@@ -605,6 +630,11 @@ function render() {
   document.querySelectorAll('.page').forEach((sec) => {
     const p = Number(sec.dataset.p);
     if (Math.abs(p - S.page) > 1) return;
+    if (sec.dataset.ext) {
+      const x = EXT.paginas.find((e) => e.nome === sec.dataset.ext);
+      if (x) { try { x.atualizar(sec, p === S.page); } catch (e) { console.error(e); } }
+      return;
+    }
     sec.querySelectorAll(".f").forEach((el) => {
       const def = CAMPOS[el.dataset.k] || CAMPOS.dist;
       if (def.especial === "mapa") return desenharMapa(el.querySelector("canvas"));
@@ -677,7 +707,7 @@ function desenharMapa(cv) {
 /* controles */
 let controlesEstado = "";
 function renderControles() {
-  const st = R.state + "|" + (R.laps.length ? 1 : 0);
+  const st = R.state + "|" + (R.laps.length ? 1 : 0) + "|" + (typeof treinoAtivo === "function" && treinoAtivo() ? 1 : 0);
   if (st === controlesEstado) return;
   controlesEstado = st;
   const f = $("#controls");
@@ -687,19 +717,19 @@ function renderControles() {
   };
   f.innerHTML = "";
   if (R.state === "idle") {
-    f.append(B("Sensores", "", () => abrir("dlgSensors")), B("▶ INICIAR", "main", iniciar), B("Ajustes", "", abrirAjustes));
+    f.append(B("Sensores", "", () => abrir("dlgSensors")), B("▶ INICIAR", "main", iniciar), B("Menu", "", abrirMenu));
   } else if (R.state === "running" || R.state === "autopaused") {
-    f.append(B("Volta", "", volta), B("❚❚ PAUSAR", "pause", pausar), B("Sensores", "", () => abrir("dlgSensors")));
+    f.append(B(typeof treinoAtivo === "function" && treinoAtivo() ? "Próximo" : "Volta", "", volta), B("❚❚ PAUSAR", "pause", pausar), B("Menu", "", abrirMenu));
   } else if (R.state === "paused") {
     const fim = B("■ Encerrar", "stop hold");
     segurarBotao(fim, encerrar);
-    f.append(fim, B("▶ RETOMAR", "main", iniciar), B("Ajustes", "", abrirAjustes));
+    f.append(fim, B("▶ RETOMAR", "main", iniciar), B("Menu", "", abrirMenu));
   } else if (R.state === "done") {
     f.append(B("Resumo", "", abrirResumo), B("NOVO PEDAL", "main", () => {
       if (confirm("Começar um pedal novo? O anterior some do celular — exporte antes se ainda não exportou.")) {
         apagarPedal(R.id); R = rideNova(); buf = []; salvarMeta(); controlesEstado = ""; render();
       }
-    }), B("Ajustes", "", abrirAjustes));
+    }), B("Menu", "", abrirMenu));
   }
 }
 function segurarBotao(b, fn, ms = 1100) {
@@ -743,6 +773,20 @@ document.addEventListener("click", (e) => {
 $("#bHr").addEventListener("click", () => (S.hr.dev ? esquecer("hr") : conectar("hr")));
 $("#bCad").addEventListener("click", () => (S.cad.dev ? esquecer("cad") : conectar("cad")));
 $("#bGps").addEventListener("click", ligarGps);
+
+function abrirMenu() {
+  const body = $("#menuBody"); body.innerHTML = "";
+  const item = (txt, sub, fn) => {
+    const b = document.createElement("button"); b.className = "mItem";
+    b.innerHTML = "<b>" + txt + "</b><small>" + sub + "</small>";
+    b.addEventListener("click", () => { $("#dlgMenu").close(); fn(); }); body.appendChild(b);
+  };
+  EXT.menu.forEach((m) => item(m.txt, typeof m.sub === "function" ? m.sub() : m.sub, m.fn));
+  item("Sensores", "FC, cadência, GPS", () => abrir("dlgSensors"));
+  item("Ajustes", "zonas, alertas, tela", abrirAjustes);
+  if (R.state === "done") item("Resumo do pedal", "e exportar TCX", abrirResumo);
+  abrir("dlgMenu");
+}
 
 function abrirTroca(p, idx) {
   const atual = cfg.pages[p][idx].k;
@@ -941,15 +985,18 @@ function restaurar() {
   } catch {}
 }
 
-document.documentElement.dataset.theme = cfg.theme;
-restaurar();
-montarPaginas();
-if (DEMO) demo();
-else if (navigator.permissions) {
-  navigator.permissions.query({ name: "geolocation" }).then((p) => { if (p.state === "granted") ligarGps(); }).catch(() => {});
+function iniciarApp() {
+  document.documentElement.dataset.theme = cfg.theme;
+  restaurar();
+  montarPaginas();
+  if (DEMO) demo();
+  else if (navigator.permissions) {
+    navigator.permissions.query({ name: "geolocation" }).then((p) => { if (p.state === "granted") ligarGps(); }).catch(() => {});
+  }
+  setInterval(tick, 1000);
+  window.addEventListener("resize", render);
+  window.addEventListener("pagehide", () => { gravarChunk(); salvarMeta(); });
+  if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+  render();
 }
-setInterval(tick, 1000);
-window.addEventListener("resize", render);
-window.addEventListener("pagehide", () => { gravarChunk(); salvarMeta(); });
-if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
-render();
+document.addEventListener("DOMContentLoaded", iniciarApp);

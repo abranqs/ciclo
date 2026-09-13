@@ -14,6 +14,15 @@ App web instalável (PWA) para Android que faz o papel de um Edge no guidão:
 
 Endereço: https://abranqs.github.io/ciclo/ · teste sem sensores: https://abranqs.github.io/ciclo/?demo=1
 
+## Rotas e treinos do Garmin
+
+- **Treinos**: os treinos de bike do seu calendário do Garmin Connect, incluindo os do ciclo enviados pelo treino-ia, são executados passo a passo. A tela mostra tempo restante, alvo de FC com a faixa desenhada, contagem 3-2-1 e bipe quando você sai do alvo. Cada passo vira uma volta no TCX.
+- **Rotas**: seus cursos de bike do Garmin Connect, ou GPX/TCX de qualquer lugar, ou KML/KMZ desenhados no **Google Earth**. Na tela da rota: mapa de **satélite**, ruas ou relevo, próxima curva com aviso aos 200 m, alerta de saída da rota, distância e subida restantes, hora estimada de chegada e perfil de altimetria.
+- **Google Earth**: botão que abre a rota no app do Google Earth (em 3D) e link para o Google Maps até o início. Rotas do Earth sem altitude ganham altimetria pelo relevo Copernicus (Open-Meteo).
+- **De onde vêm**: o treino-ia, no computador, publica treinos e rotas no repositório **privado** `abranqs/ciclo-dados` a cada sincronização. O app lê com um token só de leitura, configurado em Menu → Sincronização. Arquivos também entram pelo **Compartilhar** do Android.
+
+O que funciona sem internet: treino, linha da rota, curvas, desvio e altimetria. O fundo do mapa precisa de sinal; o que você já viu fica guardado.
+
 ## Instalar
 
 1. No Android, abra o endereço no **Chrome**.

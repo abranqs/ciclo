@@ -7,6 +7,7 @@
 <title>Ciclo</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
 <style>
   :root{
     --bg:#0b0c0e; --card:#16181c; --line:#26292f; --txt:#f2f3f5; --mute:#8b919a;
@@ -110,6 +111,68 @@
   .pick button.on{outline:2px solid var(--acc)}
   .banner{background:var(--warn);color:#111;padding:8px 12px;font-weight:700;font-size:14px;display:none}
   .banner.on{display:block}
+  .banner b{font-weight:800}
+
+  /* menu */
+  #menuBody{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .mItem{border:0;border-radius:14px;background:var(--card);color:var(--txt);padding:16px 12px;text-align:left;min-height:78px}
+  .mItem b{display:block;font-size:17px}
+  .mItem small{display:block;color:var(--mute);font-size:12px;margin-top:4px;line-height:1.3}
+  .acoes{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .acoes button,.acoes a{border:0;background:var(--bg);color:var(--txt);border-radius:9px;padding:8px 10px;font-weight:700;font-size:13px;text-decoration:none}
+  .tItem.hoje{outline:2px solid var(--ok)}
+  details summary{margin-top:8px;color:var(--mute);font-size:13px;font-weight:700}
+  h3{font-size:14px;margin:16px 0 4px;color:var(--mute);text-transform:uppercase;letter-spacing:.06em}
+  input[type=text],input[type=password]{padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--txt);font-size:15px}
+
+  /* paginas de extensao */
+  .page.ext{display:block;padding:6px}
+  .rPg{position:relative;height:100%;display:flex;flex-direction:column;gap:6px}
+  .rMapa{flex:1;border-radius:12px;overflow:hidden;position:relative;background:#222;min-height:0}
+  /* Leaflet poe position:relative inline quando o div ainda nao esta no DOM; sem o !important o mapa fica com 0 px de altura. */
+  .mapaLeaflet{position:absolute!important;inset:0}
+  .rCue{position:absolute;left:8px;right:8px;top:8px;z-index:500;display:flex;align-items:center;gap:10px;
+    background:rgba(11,12,14,.88);color:#fff;border-radius:12px;padding:8px 12px}
+  .rCue.fora{background:rgba(208,59,59,.95)}
+  .rCue .seta{font-size:44px;line-height:1;font-weight:800;width:44px;text-align:center}
+  .rCue .cTxt{flex:1;min-width:0}
+  .rCue .cTxt b{display:block;font-size:30px;font-weight:800;line-height:1}
+  .rCue .cTxt span{font-size:14px;opacity:.85}
+  .rFalta{text-align:right}
+  .rFalta span{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;opacity:.7}
+  .rFalta b{font-size:24px;font-weight:800}
+  .rFalta small{display:block;font-size:12px;opacity:.8}
+  .rBtns{position:absolute;right:14px;bottom:106px;z-index:500;display:flex;flex-direction:column;gap:8px}
+  .rBtns button{border:0;border-radius:12px;background:rgba(11,12,14,.85);color:#fff;font-weight:800;padding:10px 12px;font-size:15px;min-width:52px}
+  .rBtns button.on{background:#3aa0ff}
+  .rDes{position:absolute;left:14px;bottom:106px;z-index:500;background:rgba(11,12,14,.85);color:#fff;border-radius:10px;padding:6px 10px;font-weight:700;font-size:14px}
+  .rDes:empty{display:none}
+  .rPerfil{height:90px;width:100%;background:var(--card);border-radius:12px;flex:none}
+  .leaflet-container{font-family:inherit;background:#1b1d21}
+  .leaflet-control-attribution{font-size:9px!important}
+
+  .wPg{height:100%;display:grid;grid-template-rows:auto 1.1fr 1.3fr auto auto auto;gap:6px}
+  .wTopo{display:flex;align-items:center;gap:10px;background:var(--card);border-radius:12px;padding:10px 12px}
+  .wTopo span{font-weight:800;color:var(--mute)}
+  .wTopo b{flex:1;font-size:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .wBloco{background:var(--card);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px;min-width:0}
+  .wBloco .lb{font-size:12px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--mute)}
+  .wBloco b{font-weight:800;line-height:1;letter-spacing:-.02em;font-size:clamp(28px,9vw,54px)}
+  .wFalta b{font-size:clamp(60px,22vw,130px)}
+  .wAlvo b{font-size:clamp(60px,22vw,130px)}
+  .wAlvo[data-estado="dentro"]{background:var(--z2);color:#fff}
+  .wAlvo[data-estado="acima"]{background:var(--bad);color:#fff}
+  .wAlvo[data-estado="abaixo"]{background:var(--z1);color:#fff}
+  .wAlvo[data-estado] .lb{color:rgba(255,255,255,.85)}
+  .gauge{position:relative;width:88%;height:12px;border-radius:6px;background:rgba(127,127,127,.35);margin-top:8px}
+  .gauge s{position:absolute;top:0;bottom:0;background:rgba(255,255,255,.75);border-radius:6px}
+  .gauge i{position:absolute;top:-6px;width:4px;height:24px;margin-left:-2px;background:#000;border-radius:2px;box-shadow:0 0 0 2px #fff}
+  .wLinha{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+  .wLinha b{font-size:clamp(24px,8vw,44px)}
+  .wProx{background:var(--card);border-radius:12px;padding:10px 12px;font-weight:700;font-size:15px}
+  .wProx .lb{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--mute);margin-right:8px}
+  .wProg{height:8px;border-radius:4px;background:var(--line);overflow:hidden}
+  .wProg i{display:block;height:100%;background:var(--acc);width:0}
 </style>
 </head>
 <body>
@@ -164,11 +227,35 @@
   <div class="db" id="summaryBody"></div>
 </dialog>
 
+<dialog id="dlgMenu">
+  <div class="dh"><h2>Menu</h2><button class="x" data-close>Fechar</button></div>
+  <div class="db"><div id="menuBody"></div></div>
+</dialog>
+
+<dialog id="dlgRotas">
+  <div class="dh"><h2>Rotas</h2><button class="x" data-close>Fechar</button></div>
+  <div class="db" id="rotasBody"></div>
+</dialog>
+
+<dialog id="dlgTreinos">
+  <div class="dh"><h2>Treinos</h2><button class="x" data-close>Fechar</button></div>
+  <div class="db" id="treinosBody"></div>
+</dialog>
+
+<dialog id="dlgSync">
+  <div class="dh"><h2>Sincronização com o Garmin</h2><button class="x" data-close>Fechar</button></div>
+  <div class="db" id="syncBody"></div>
+</dialog>
+
 <dialog id="dlgPick">
   <div class="dh"><h2>Trocar campo</h2><button class="x" data-close>Fechar</button></div>
   <div class="db"><div class="pick" id="pickBody"></div></div>
 </dialog>
 
+<script src="vendor/leaflet/leaflet.js"></script>
 <script src="app.js"></script>
+<script src="rotas.js"></script>
+<script src="treinos.js"></script>
+<script src="sync.js"></script>
 </body>
 </html>

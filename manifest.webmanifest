@@ -1,0 +1,16 @@
+{
+  "name": "Ciclo — computador de bordo",
+  "short_name": "Ciclo",
+  "description": "Computador de bordo de ciclismo: GPS do celular, FC e cadência por Bluetooth, zonas de Karvonen e exportação TCX.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b0c0e",
+  "theme_color": "#0b0c0e",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

@@ -4,7 +4,7 @@
  *    quando o sinal cai;
  *  - recebe arquivos do "Compartilhar" do Android (share target).
  */
-const VERSAO = "ciclo-1.1.1";
+const VERSAO = "ciclo-1.1.2";
 const MAPAS = "ciclo-mapas-1";
 const RECEBIDOS = "ciclo-recebidos";
 const ARQUIVOS = ["./", "./index.html", "./app.js", "./rotas.js", "./treinos.js", "./sync.js", "./manifest.webmanifest",

@@ -9,7 +9,7 @@
  */
 "use strict";
 
-const VERSAO = "1.1.1";
+const VERSAO = "1.1.2";
 
 /* Pontos de extensao: rotas.js, treinos.js e sync.js se penduram aqui. */
 const EXT = { tick: [], volta: [], iniciar: [], encerrar: [], paginas: [], menu: [] };
@@ -154,8 +154,18 @@ async function manterTela() {
   if (!cfg.wake || !("wakeLock" in navigator) || wl) return;
   try { wl = await navigator.wakeLock.request("screen"); wl.addEventListener("release", () => { wl = null; }); } catch {}
 }
+/* O Forerunner aceita UMA conexao Bluetooth com o celular. Se o Chrome segurar
+ * a conexao de FC com o app fechado, o Garmin Connect para de sincronizar o
+ * relogio. Entao, sem pedal em andamento, sair do app solta os sensores — e
+ * encerrar o pedal tambem. Com pedal gravando, a conexao fica. */
+function soltarSensores(motivo) {
+  let soltou = false;
+  ["hr", "cad"].forEach((k) => { if (S[k].dev || S[k].want) { esquecer(k); soltou = true; } });
+  if (soltou && motivo) toast(motivo);
+}
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") { manterTela(); tick(); }
+  if (document.visibilityState === "visible") { manterTela(); tick(); return; }
+  if (R.state === "idle" || R.state === "done") soltarSensores();
 });
 
 /* ------------------------------------------------------------------------- */
@@ -414,6 +424,7 @@ async function encerrar() {
   salvarMeta();
   beep(784, 200, 2);
   EXT.encerrar.forEach((f) => f());
+  soltarSensores("Sensores desconectados — o relógio volta a sincronizar com o Garmin Connect");
   render(); abrirResumo();
 }
 

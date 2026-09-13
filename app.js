@@ -9,7 +9,7 @@
  */
 "use strict";
 
-const VERSAO = "1.2.2";
+const VERSAO = "1.2.3";
 
 /* Pontos de extensao: rotas.js, treinos.js, sync.js e estrada.js se penduram aqui. */
 const EXT = { tick: [], volta: [], iniciar: [], encerrar: [], paginas: [], menu: [] };
@@ -796,7 +796,7 @@ function abrirMenu() {
   };
   EXT.menu.forEach((m) => item(m.txt, typeof m.sub === "function" ? m.sub() : m.sub, m.fn));
   item("Sensores", "FC, cadência, GPS", () => abrir("dlgSensors"));
-  item("Ajustes", "zonas, alertas, tela", abrirAjustes);
+  item("Ajustes", "zonas, alertas, tela · versão " + VERSAO, abrirAjustes);
   if (R.state === "done") item("Resumo do pedal", "e exportar TCX", abrirResumo);
   abrir("dlgMenu");
 }
@@ -1045,6 +1045,30 @@ function restaurar() {
   } catch {}
 }
 
+/* Versao nova: o app instalado quase nunca e fechado de verdade, entao ele
+ * procura atualizacao sempre que volta para a tela e se recarrega sozinho —
+ * menos no meio de um pedal, quando so avisa. */
+function vigiarVersao() {
+  const tinhaControle = !!navigator.serviceWorker.controller;
+  let pendente = false;
+  navigator.serviceWorker.register("sw.js").then((reg) => {
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState !== "visible") return;
+      if (pendente && (R.state === "idle" || R.state === "done")) location.reload();
+      else reg.update().catch(() => {});
+    });
+    setInterval(() => reg.update().catch(() => {}), 30 * 60000);
+  }).catch(() => {});
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!tinhaControle || pendente) return;
+    pendente = true;
+    if (R.state === "idle" || R.state === "done") { location.reload(); return; }
+    const bn = $("#banner");
+    bn.textContent = "Versão nova do Ciclo pronta — atualiza sozinha quando o pedal terminar.";
+    bn.classList.add("on"); setTimeout(() => bn.classList.remove("on"), 8000);
+  });
+}
+
 function iniciarApp() {
   document.documentElement.dataset.theme = cfg.theme;
   restaurar();
@@ -1056,7 +1080,7 @@ function iniciarApp() {
   setInterval(tick, 1000);
   window.addEventListener("resize", render);
   window.addEventListener("pagehide", () => { gravarChunk(); salvarMeta(); });
-  if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+  if ("serviceWorker" in navigator && location.protocol === "https:") vigiarVersao();
   render();
 }
 document.addEventListener("DOMContentLoaded", iniciarApp);

@@ -5,7 +5,7 @@
  *  - guarda estradas (OpenFreeMap) e relevo (Terrarium) da "Estrada a frente";
  *  - recebe arquivos do "Compartilhar" do Android (share target).
  */
-const VERSAO = "ciclo-1.2.2";
+const VERSAO = "ciclo-1.2.3";
 const MAPAS = "ciclo-mapas-1";
 const RECEBIDOS = "ciclo-recebidos";
 const TERRENO = "ciclo-terreno-1";
@@ -84,8 +84,10 @@ self.addEventListener("fetch", (e) => {
   }
   if (url.origin !== location.origin) return;
   // App: rede primeiro (pega versao nova quando ha sinal), cache quando nao ha.
+  // "no-cache" revalida no servidor: o GitHub Pages manda guardar 10 min, e sem
+  // isso o app aberto logo depois de uma publicacao continuava na versao velha.
   e.respondWith(
-    fetch(e.request)
+    fetch(url.href, { cache: "no-cache", credentials: "same-origin" })
       .then((r) => { const copia = r.clone(); caches.open(VERSAO).then((c) => c.put(e.request, copia)); return r; })
       .catch(() => caches.match(e.request, { ignoreSearch: true }))
   );

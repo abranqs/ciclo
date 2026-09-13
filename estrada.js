@@ -33,6 +33,8 @@ const EST = {
   hist: [], rumo: null,
   casado: null, caminho: null, perfil: null, estado: "aguardando GPS",
   tCalc: 0, avisos: [],
+  feito: [],             // [R.dist, altitude] do que já foi pedalado, de 20 em 20 m
+  subida: null,          // subida em andamento ou logo à frente (modo ClimbPro)
 };
 const Z_VIAS = 14, Z_DEM = 13, CEL_SEG = 0.0005, Q_NO = 0.00002, ALCANCE = 2500, PASSO = 25;
 const RANK = { motorway: 6, trunk: 6, primary: 5, secondary: 4, tertiary: 3, minor: 2, service: 1, track: 1, path: 0 };
@@ -507,10 +509,48 @@ function avisarSubida() {
   toast("Subida em " + fmtDist(s.ini) + ": " + fmtDist(s.len) + " a " + fmtPct(s.grade) + " (+" + Math.round(s.ganho) + " m)", 5000);
 }
 
+/* Subida inteira a partir dos trechos: junta rampas separadas por respiro
+ * curto (até 300 m e no máximo 10 m de perda), como o ClimbPro. */
+function subidaNoPerfil(p) {
+  const ts = p.trechos, i = ts.findIndex((x) => x.tipo === 1 && x.ini <= 800);
+  if (i < 0) return null;
+  let f = i;
+  for (let j = i + 1; j < ts.length; j++) {
+    if (ts[j].tipo === 1) f = j;
+    else if (ts[j].len > 300 || ts[j].ganho < -10) break;
+  }
+  const ini = ts[i].ini, ia = Math.round(ini / PASSO);
+  // o topo é o ponto mais alto: a suavização pode colar um pedaço de descida no fim
+  let ib = Math.round(ts[f].fim / PASSO);
+  for (let k = ia; k <= Math.round(ts[f].fim / PASSO); k++) if (p.e[k] > p.e[ib]) ib = k;
+  const fim = ib * PASSO;
+  let resta = 0;
+  for (let k = Math.max(1, ia + 1); k <= ib; k++) resta += Math.max(0, p.e[k] - p.e[k - 1]);
+  return { ini, fim, len: fim - ini, ganho: p.e[ib] - p.e[ia], resta, aberta: fim >= p.dist - PASSO };
+}
+
+function acompanharSubida() {
+  const p = EST.perfil, c = EST.subida;
+  if (R.state === "running" && p && p.e && (!EST.feito.length || R.dist - EST.feito[EST.feito.length - 1][0] >= 20)) {
+    EST.feito.push([R.dist, p.e[0]]);
+    if (EST.feito.length > 600) EST.feito.shift();
+  }
+  const s = p && p.trechos ? subidaNoPerfil(p) : null;
+  if (s && c && R.dist + s.ini <= c.dFim + 150) {
+    if (s.ini > 0) c.dIni = R.dist + s.ini;
+    c.dFim = R.dist + s.fim; c.s = s; c.t = agora();
+  } else if (s && s.len >= 300 && s.ganho >= 15) {
+    EST.subida = { dIni: R.dist + s.ini, dFim: R.dist + s.fim, s, t: agora() };
+  } else if (c && (R.dist > c.dFim + 30 || agora() - c.t > 60000)) {
+    EST.subida = null;
+  } else if (c) c.s = null;
+}
+
 EXT.tick.push((t) => {
   if (t - EST.tCalc < 3000) return;
   EST.tCalc = t;
   atualizarEstrada(t);
+  acompanharSubida();
   avisarSubida();
 });
 
@@ -520,13 +560,16 @@ EXT.tick.push((t) => {
 
 const fmtPct = (g) => (g > 0.05 ? "+" : "") + g.toFixed(1) + "%";
 const SETA_T = { 1: "↗", 0: "→", "-1": "↘" };
+/* faixas de cor do ClimbPro: verde até 3%, amarelo até 6%, laranja até 9%,
+ * vermelho até 12%, vinho acima; descida em azul */
 function corGrade(g) {
   if (g <= -2.5) return "#3aa0ff";
-  if (g < 2.5) return "#7d838c";
-  if (g < 5) return "#1baf7a";
-  if (g < 8) return "#e6c200";
-  if (g < 11) return "#eb6834";
-  return "#d03b3b";
+  if (g < 0) return "#7d838c";
+  if (g < 3) return "#5ec43a";
+  if (g < 6) return "#f2c500";
+  if (g < 9) return "#f07d14";
+  if (g < 12) return "#dc2d1e";
+  return "#8a1010";
 }
 function descreverTrecho(s, primeiro) {
   if (s.tipo === 0) return (primeiro ? "Plano" : "plano") + " por " + fmtDist(s.len);
@@ -553,6 +596,7 @@ function desenharEstrada(el) {
     b1.textContent = "À frente"; b2.textContent = (p && p.vazio) || EST.estado; b3.textContent = "";
     return;
   }
+  if (EST.subida && EST.subida.s) return desenharSubida(el, ctx, W, H, p, EST.subida);
   const [a, b] = p.trechos;
   b1.textContent = SETA_T[a.tipo] + " " + descreverTrecho(a, true);
   const prox = p.trechos.find((x, i) => i > 0 && x.tipo === 1 && x.len >= 200);
@@ -576,8 +620,63 @@ function desenharEstrada(el) {
   ctx.beginPath(); ctx.arc(X(0), Y(p.e[0]), 5, 0, 7); ctx.fill(); ctx.stroke();
 }
 
+/* Modo subida, no desenho do Edge: perfil só da subida (feito + à frente),
+ * alfinete com a inclinação de agora, barra de progresso e, embaixo,
+ * inclinação, distância até o topo e metros que faltam subir. */
+function desenharSubida(el, ctx, W, H, p, c) {
+  const s = c.s, css = getComputedStyle(document.documentElement);
+  const txt = css.getPropertyValue("--txt").trim() || "#fff", card = css.getPropertyValue("--card").trim() || "#16181c";
+  const linha = css.getPropertyValue("--line").trim() || "#26292f";
+  const feito = s.ini > 0 ? [] : EST.feito.filter(([d]) => d >= c.dIni - 1 && d < R.dist - 5);
+  const aj = feito.length ? p.e[0] - feito[feito.length - 1][1] : 0;
+  const xs = feito.map(([d]) => d - R.dist), es = feito.map(([, e]) => e + aj);
+  for (let i = 0; i < p.d.length && p.d[i] <= s.fim; i++) { xs.push(p.d[i]); es.push(p.e[i]); }
+  const n = xs.length, xa = xs[0], xb = xs[n - 1];
+  const gr = (i) => { const a = Math.max(0, i - 2), b = Math.min(n - 1, i + 2); return xs[b] > xs[a] ? ((es[b] - es[a]) / (xs[b] - xs[a])) * 100 : 0; };
+  const i0 = xs.indexOf(0), iIni = s.ini > 0 ? Math.round(s.ini / PASSO) : 0;
+  const lenTotal = xb - (s.ini > 0 ? s.ini : xa), ganhoTotal = es[n - 1] - es[iIni];
+  const gAgora = Math.round(p.g[Math.min(1, p.g.length - 1)]);
+
+  el.querySelector(".eAgora").textContent = "⛰ Subida · " + fmtDist(lenTotal) + " a " + fmtPct((ganhoTotal / Math.max(1, lenTotal)) * 100);
+  el.querySelector(".eDepois").textContent = s.ini > 0 ? "começa em " + fmtDist(s.ini) : s.aberta ? "topo além de 2.5 km" : feito.length ? "feito " + fmtDist(-xa) + " · ↑" + Math.round(es[i0] - es[0]) + " m" : "";
+  el.querySelector(".eFonte").textContent = "";
+
+  const rodape = Math.max(34, Math.min(46, H * 0.18)), topo = Math.min(62, H * 0.3), base = H - rodape - 16;
+  const mn = Math.min(...es), mx = Math.max(...es), faixa = Math.max(20, mx - mn);
+  const X = (x) => 10 + ((x - xa) / Math.max(1, xb - xa)) * (W - 20), Y = (e) => base - ((e - mn) / faixa) * (base - topo);
+  for (let i = 1; i < n; i++) {
+    ctx.beginPath();
+    ctx.moveTo(X(xs[i - 1]), base); ctx.lineTo(X(xs[i - 1]), Y(es[i - 1])); ctx.lineTo(X(xs[i]), Y(es[i])); ctx.lineTo(X(xs[i]), base);
+    ctx.closePath(); ctx.fillStyle = corGrade((gr(i - 1) + gr(i)) / 2); ctx.fill();
+  }
+  ctx.fillStyle = txt; ctx.fillRect(10, base, W - 20, 1.5);
+
+  // alfinete e balão com a inclinação de agora
+  const px = X(0), py = Y(p.e[0]), rot = gAgora + "%";
+  ctx.font = "800 15px Roboto,sans-serif";
+  const bw = ctx.measureText(rot).width + 14, bx = Math.max(10, Math.min(W - 10 - bw, px - bw / 2)), by = Math.max(4, py - 44);
+  ctx.fillStyle = card; ctx.strokeStyle = txt; ctx.lineWidth = 2;
+  ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(bx, by, bw, 22, 5); else ctx.rect(bx, by, bw, 22); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = txt; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(rot, bx + bw / 2, by + 11.5);
+  ctx.beginPath(); ctx.moveTo(px, by + 22); ctx.lineTo(px, py - 6); ctx.stroke();
+  ctx.beginPath(); ctx.arc(px, py, 5, 0, 7); ctx.fill();
+
+  // barra de progresso na subida
+  const yb = base + 7, feitoM = Math.max(0, -xa), frac = s.ini > 0 ? 0 : feitoM / Math.max(1, feitoM + s.fim);
+  ctx.fillStyle = linha; ctx.fillRect(10, yb, W - 20, 6);
+  ctx.fillStyle = "#3aa0ff"; ctx.fillRect(10, yb, (W - 20) * frac, 6);
+
+  // rodapé: inclinação · até o topo · falta subir, cada um no seu terço
+  const textos = ["◢ " + gAgora + "%", "↔ " + fmtDist(s.fim), "↑ " + Math.round(s.resta) + " m"], col = (W - 20) / 3;
+  let fs = Math.round(Math.min(rodape * 0.8, 34));
+  do { ctx.font = "800 " + fs + "px Roboto,sans-serif"; } while (fs-- > 12 && textos.some((t) => ctx.measureText(t).width > col - 6));
+  ctx.fillStyle = txt; ctx.textBaseline = "alphabetic"; ctx.textAlign = "center";
+  const yr = H - Math.max(6, (rodape - fs) / 2);
+  textos.forEach((t, k) => ctx.fillText(t, 10 + col * (k + 0.5), yr));
+}
+
 CAMPOS.estrada = {
-  lb: "Estrada à frente", especial: "estrada", full: 1,
+  lb: "Estrada à frente", especial: "estrada", full: 1, tall: 1,
   html: '<canvas></canvas><div class="eTxt"><b class="eAgora"></b><span class="eDepois"></span></div><small class="eFonte"></small>',
   desenhar: desenharEstrada,
 };
@@ -607,5 +706,13 @@ desenharMapa = function (cv) {
     if (pg) pg.splice(pg.findIndex((c) => c.k === "map") + 1, 0, { k: "estrada", full: 1 });
   }
   cfg.vEstrada = 1;
+  salvarCfg();
+})();
+
+/* v2: o campo fica com duas linhas de altura, como a tela de subida do Edge */
+(function migrar2() {
+  if (cfg.vEstrada >= 2) return;
+  cfg.pages.forEach((pg) => pg.forEach((c) => { if (c.k === "estrada") { c.full = 1; c.tall = 1; } }));
+  cfg.vEstrada = 2;
   salvarCfg();
 })();

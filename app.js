@@ -9,7 +9,7 @@
  */
 "use strict";
 
-const VERSAO = "1.2.0";
+const VERSAO = "1.2.1";
 
 /* Pontos de extensao: rotas.js, treinos.js, sync.js e estrada.js se penduram aqui. */
 const EXT = { tick: [], volta: [], iniciar: [], encerrar: [], paginas: [], menu: [] };
@@ -811,6 +811,7 @@ function abrirTroca(p, idx) {
       cfg.pages[p][idx].k = k;
       if (k === "map") { cfg.pages[p][idx].full = 1; cfg.pages[p][idx].tall = 1; }
       if (k === "zonebar" || CAMPOS[k].full) cfg.pages[p][idx].full = 1;
+      if (CAMPOS[k].tall) cfg.pages[p][idx].tall = 1;
       salvarCfg(); montarPaginas(); $("#dlgPick").close();
     });
     body.appendChild(b);

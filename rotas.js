@@ -488,6 +488,28 @@ EXT.paginas.push({
  * camada escolhida na tela de rota, o trajeto feito e a rota ativa. Sem
  * Leaflet (nao deveria acontecer), cai no desenho antigo. */
 const MAPAS_CAMPO = [];
+
+/* O mapa segura o toque (para arrastar), então o "segure para trocar" do
+ * campo nunca chegava. O próprio mapa abre a troca; mexer o dedo cancela. */
+function segurarMapa(div, el) {
+  let tm = null, x0 = 0, y0 = 0;
+  const parar = () => { if (tm) clearTimeout(tm); tm = null; };
+  div.addEventListener("pointerdown", (e) => {
+    parar(); x0 = e.clientX; y0 = e.clientY;
+    tm = setTimeout(() => {
+      tm = null;
+      const sec = el.closest(".page");
+      const p = sec ? Number(sec.dataset.p) - paginasExt().length : -1, idx = Number(el.dataset.i);
+      if (p < 0 || !cfg.pages[p] || !cfg.pages[p][idx]) return;
+      if (navigator.vibrate) navigator.vibrate(30);
+      abrirTroca(p, idx);
+    }, 650);
+  });
+  div.addEventListener("pointermove", (e) => { if (Math.hypot(e.clientX - x0, e.clientY - y0) > 12) parar(); });
+  ["pointerup", "pointercancel", "pointerleave"].forEach((ev) => div.addEventListener(ev, parar));
+  div.addEventListener("contextmenu", (e) => e.preventDefault());
+}
+
 const desenharMapaCanvas = desenharMapa;
 desenharMapa = function (cv) {
   const el = cv.parentElement;
@@ -509,6 +531,7 @@ desenharMapa = function (cv) {
     mapa.on("dblclick", () => { m.seguir = true; });
     div.addEventListener("touchstart", (e) => e.stopPropagation(), { passive: true });
     div.addEventListener("touchend", (e) => e.stopPropagation());
+    segurarMapa(div, el);
     MAPAS_CAMPO.push(m);
     setTimeout(() => mapa.invalidateSize(), 60);
   }

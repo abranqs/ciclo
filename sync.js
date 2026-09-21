@@ -200,14 +200,24 @@ async function montarPacotePedal() {
            dist_m: Math.round(R.dist), cad, fc, v, versao: VERSAO };
 }
 
+/* O Resumo e um <dialog> modal: o toast fica ATRAS dele (camada de topo do
+ * navegador) e o botao parecia nao responder. O aviso vai no proprio botao. */
+function avisoPedal(msg, ok) {
+  const b = document.getElementById("bPc");
+  if (b) { b.textContent = msg; b.disabled = !!ok; }
+  toast(msg, 4000);
+}
+
 async function enviarPedal(manual) {
+  const avisa = (m, ok) => { if (manual) avisoPedal(m, ok); else if (ok) toast(m, 3000); };
   if (DEMO) return;
-  if (!SYNC.token) { if (manual) toast("Configure a sincronização para enviar ao computador"); return; }
-  if (R.enviado) { if (manual) toast("Este pedal já foi enviado ao computador"); return; }
+  if (!SYNC.token) { avisa("Configure a sincronização para enviar"); return; }
+  if (R.enviado) { avisa("Já enviado ao computador ✓", true); return; }
+  if (manual) avisoPedal("Enviando…");
   try {
     const p = await montarPacotePedal();
-    if (!p) return;
-    if (!p.cad.some((x) => x != null)) { if (manual) toast("Pedal sem cadência — nada a acrescentar ao Garmin"); return; }
+    if (!p) { avisa("Este pedal não está mais no celular"); return; }
+    if (!p.cad.some((x) => x != null)) { avisa("Pedal sem cadência — nada a enviar"); return; }
     const titulo = "ciclo-pedal " + new Date(p.inicio_ms).toISOString().slice(0, 16).replace("T", " ");
     const r = await fetch("https://api.github.com/repos/" + SYNC.repo + "/issues", {
       method: "POST",
@@ -215,8 +225,8 @@ async function enviarPedal(manual) {
                  "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json" },
       body: JSON.stringify({ title: titulo, body: JSON.stringify(p) }),
     });
-    if (r.status === 201) { R.enviado = true; salvarMeta(); toast("Cadência enviada ao computador", 3000); }
-    else toast("Não enviou (GitHub " + r.status + "). Tente de novo no Resumo.", 5000);
-  } catch (e) { toast("Não enviou: " + e.message, 5000); }
+    if (r.status === 201) { R.enviado = true; salvarMeta(); avisa("Enviado ao computador ✓", true); }
+    else avisa("Não enviou (GitHub " + r.status + ") — toque para tentar de novo");
+  } catch (e) { avisa("Não enviou: " + e.message); }
 }
 EXT.encerrar.push(() => { enviarPedal(false); });

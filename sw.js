@@ -5,7 +5,7 @@
  *  - guarda estradas (OpenFreeMap) e relevo (Terrarium) da "Estrada a frente";
  *  - recebe arquivos do "Compartilhar" do Android (share target).
  */
-const VERSAO = "ciclo-1.2.4";
+const VERSAO = "ciclo-1.2.5";
 const MAPAS = "ciclo-mapas-1";
 const RECEBIDOS = "ciclo-recebidos";
 const TERRENO = "ciclo-terreno-1";

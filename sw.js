@@ -5,11 +5,11 @@
  *  - guarda estradas (OpenFreeMap) e relevo (Terrarium) da "Estrada a frente";
  *  - recebe arquivos do "Compartilhar" do Android (share target).
  */
-const VERSAO = "ciclo-1.2.5";
+const VERSAO = "ciclo-1.3.0";
 const MAPAS = "ciclo-mapas-1";
 const RECEBIDOS = "ciclo-recebidos";
 const TERRENO = "ciclo-terreno-1";
-const ARQUIVOS = ["./", "./index.html", "./app.js", "./rotas.js", "./treinos.js", "./sync.js", "./estrada.js", "./manifest.webmanifest",
+const ARQUIVOS = ["./", "./index.html", "./app.js", "./rotas.js", "./treinos.js", "./sync.js", "./trechos.js", "./estrada.js", "./manifest.webmanifest",
   "./icons/icon-192.png", "./icons/icon-512.png", "./vendor/leaflet/leaflet.js", "./vendor/leaflet/leaflet.css"];
 const HOSTS_MAPA = ["server.arcgisonline.com", "tile.openstreetmap.org", "a.tile.opentopomap.org", "b.tile.opentopomap.org", "c.tile.opentopomap.org"];
 const MAX_BLOCOS = 3000, MAX_TERRENO = 1500;

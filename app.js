@@ -9,7 +9,7 @@
  */
 "use strict";
 
-const VERSAO = "1.2.5";
+const VERSAO = "1.3.0";
 
 /* Pontos de extensao: rotas.js, treinos.js, sync.js e estrada.js se penduram aqui. */
 const EXT = { tick: [], volta: [], iniciar: [], encerrar: [], paginas: [], menu: [] };

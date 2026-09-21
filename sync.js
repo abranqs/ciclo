@@ -72,9 +72,11 @@ async function sincronizar(silencioso) {
     const doGarmin = new Set((idx.rotas || []).map((r) => "g" + r.id));
     for (const r of locais) if (r.origem === "garmin" && !doGarmin.has(r.id)) await apagarRota(r.id);
     await substituirTreinos(idx.treinos || []);
-    const info = { t: agora(), gerado: idx.gerado_em, treinos: (idx.treinos || []).length, rotas: (idx.rotas || []).length };
+    if (typeof salvarTrechos === "function" && Array.isArray(idx.trechos)) salvarTrechos(idx.trechos);
+    const info = { t: agora(), gerado: idx.gerado_em, treinos: (idx.treinos || []).length, rotas: (idx.rotas || []).length,
+                   trechos: (idx.trechos || []).length };
     try { localStorage.setItem("ciclo_sync", JSON.stringify(info)); } catch {}
-    if (!silencioso) toast("Garmin: " + info.treinos + " treinos de bike e " + info.rotas + " rotas" + (novas ? " (" + novas + " novas/atualizadas)" : ""), 3500);
+    if (!silencioso) toast("Garmin: " + info.treinos + " treinos de bike, " + info.rotas + " rotas e " + info.trechos + " trechos" + (novas ? " (" + novas + " novas/atualizadas)" : ""), 3500);
     avisarTreinoDoDia();
   } catch (e) {
     if (!silencioso) toast("Não sincronizou: " + e.message, 6000);

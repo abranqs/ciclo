@@ -170,3 +170,53 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch {}
   }, 1500);
 });
+
+/* ------------------------------------------------------------------------- */
+/* Pedal gravado aqui -> computador (21/09/2026)                              */
+/*                                                                            */
+/* O celular pega o sensor de cadencia pelo Bluetooth; enquanto ele esta      */
+/* conectado aqui, o relogio nao consegue le-lo. Entao a cadencia so existe   */
+/* neste aparelho. Ao encerrar o pedal, as series (cadencia, FC, velocidade)  */
+/* vao numa issue "ciclo-pedal" do ciclo-dados; o treino-ia le, casa com a    */
+/* atividade do Garmin pelo horario e preenche a cadencia na analise.         */
+/* A issue tem teto de 65 mil caracteres: amostra de 5 s (10 s em pedal > 4 h). */
+/* ------------------------------------------------------------------------- */
+async function montarPacotePedal() {
+  const am = await lerAmostras(R.id);
+  if (!am.length) return null;
+  const ini = am[0].t, fim = am[am.length - 1].t;
+  const passo = (fim - ini) / 1000 > 4 * 3600 ? 10 : 5;
+  const cad = [], fc = [], v = [];
+  let j = 0;
+  for (let t = ini; t <= fim; t += passo * 1000) {
+    while (j + 1 < am.length && am[j + 1].t <= t) j++;
+    const s = am[j];
+    const perto = Math.abs(s.t - t) <= passo * 1000;
+    cad.push(perto && s.cad != null ? Math.round(s.cad) : null);
+    fc.push(perto && s.hr ? Math.round(s.hr) : null);
+    v.push(perto && s.v != null ? Math.round(s.v * 10) / 10 : null);
+  }
+  return { tipo: "pedal", id: "ciclo-" + R.id, inicio_ms: ini, fim_ms: fim, passo_s: passo,
+           dist_m: Math.round(R.dist), cad, fc, v, versao: VERSAO };
+}
+
+async function enviarPedal(manual) {
+  if (DEMO) return;
+  if (!SYNC.token) { if (manual) toast("Configure a sincronização para enviar ao computador"); return; }
+  if (R.enviado) { if (manual) toast("Este pedal já foi enviado ao computador"); return; }
+  try {
+    const p = await montarPacotePedal();
+    if (!p) return;
+    if (!p.cad.some((x) => x != null)) { if (manual) toast("Pedal sem cadência — nada a acrescentar ao Garmin"); return; }
+    const titulo = "ciclo-pedal " + new Date(p.inicio_ms).toISOString().slice(0, 16).replace("T", " ");
+    const r = await fetch("https://api.github.com/repos/" + SYNC.repo + "/issues", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + SYNC.token, Accept: "application/vnd.github+json",
+                 "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json" },
+      body: JSON.stringify({ title: titulo, body: JSON.stringify(p) }),
+    });
+    if (r.status === 201) { R.enviado = true; salvarMeta(); toast("Cadência enviada ao computador", 3000); }
+    else toast("Não enviou (GitHub " + r.status + "). Tente de novo no Resumo.", 5000);
+  } catch (e) { toast("Não enviou: " + e.message, 5000); }
+}
+EXT.encerrar.push(() => { enviarPedal(false); });

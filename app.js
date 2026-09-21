@@ -9,7 +9,7 @@
  */
 "use strict";
 
-const VERSAO = "1.2.3";
+const VERSAO = "1.2.4";
 
 /* Pontos de extensao: rotas.js, treinos.js, sync.js e estrada.js se penduram aqui. */
 const EXT = { tick: [], volta: [], iniciar: [], encerrar: [], paginas: [], menu: [] };
@@ -938,11 +938,13 @@ function abrirResumo() {
     '</div><div class="leg num">' + R.zoneMs.slice(1).map((ms, i) => '<div><span style="color:' + COR_ZONA[i + 1] + ';font-weight:800">Z' + (i + 1) + "</span><b>" + fmtT(ms) + "</b></div>").join("") + "</div></div>" +
     "<table><tr><th>Volta</th><th>Tempo</th><th>km</th><th>km/h</th><th>FC</th><th>Cad</th></tr>" + laps + "</table>" +
     '<div class="grid2" style="margin-top:14px"><button class="btn main" id="bTcx">Baixar TCX</button><button class="btn" id="bShare">Compartilhar</button></div>' +
+    '<button class="btn" id="bPc" style="width:100%;margin-top:8px">' + (R.enviado ? "Cadência já enviada ao computador" : "Enviar cadência ao computador") + '</button>' +
     '<p class="hint"><b>Garmin Connect:</b> connect.garmin.com → ícone de nuvem (Importar dados) → escolha o arquivo. ' +
     "<b>Strava:</b> strava.com/upload/select. Os dois corrigem a subida pelo mapa de relevo, que é mais confiável que o GPS do celular.</p>" +
     '<p class="hint">Se usou o Forerunner em Corrida virtual para a FC, descarte essa atividade no relógio para não duplicar o treino.</p>';
   $("#bTcx").addEventListener("click", baixarTcx);
   $("#bShare").addEventListener("click", compartilharTcx);
+  $("#bPc").addEventListener("click", () => enviarPedal(true));
   abrir("dlgSummary");
 }
 

@@ -14,7 +14,8 @@
  *  4. Relevo: SRTM de 30 m (blocos Terrarium da AWS, grátis). Pontes e túneis
  *     são interpolados, porque o modelo mede o vale embaixo da ponte.
  *
- * Com rota ativa e você sobre ela, o perfil vem da própria rota.
+ * Com rota ativa e você sobre ela, o perfil vem da própria rota. A rota
+ * salva é reconhecida sozinha quando você pedala por ela (rotas.js).
  *
  * Limites: o modelo de relevo erra alguns metros em mata fechada e em corte
  * de estrada, então rampas curtas (<100 m) somem na suavização; depois de um

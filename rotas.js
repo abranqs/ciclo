@@ -8,7 +8,8 @@
 
 const ROTA = { ativa: null, idx: 0, prog: 0, desvio: null, fora: 0, avisos: {}, chegou: false,
                mapa: null, mapaDiv: null, camadas: {}, camada: "satelite", linhaRota: null, linhaTrack: null,
-               marca: null, seguir: true, curvasLayer: null };
+               marca: null, seguir: true, curvasLayer: null,
+               auto: false, salvas: null, lendo: false, cands: {}, tAuto: 0, ignoradas: new Set() };
 
 /* ------------------------------------------------------------------------- */
 /* IndexedDB                                                                  */
@@ -24,8 +25,8 @@ async function loja(nome, modo, fn) {
   });
 }
 const todasRotas = () => loja("rotas", "readonly", (st) => st.getAll());
-const salvarRota = (r) => loja("rotas", "readwrite", (st) => st.put(r));
-const apagarRota = (id) => loja("rotas", "readwrite", (st) => st.delete(id));
+const salvarRota = (r) => loja("rotas", "readwrite", (st) => st.put(r)).then((x) => { ROTA.salvas = null; return x; });
+const apagarRota = (id) => loja("rotas", "readwrite", (st) => st.delete(id)).then((x) => { ROTA.salvas = null; return x; });
 const lerRota = (id) => loja("rotas", "readonly", (st) => st.get(id));
 
 /* ------------------------------------------------------------------------- */
@@ -289,6 +290,7 @@ async function ativarRota(id) {
   const r = await lerRota(id);
   if (!r) return;
   ROTA.ativa = r; ROTA.idx = 0; ROTA.prog = 0; ROTA.fora = 0; ROTA.avisos = {}; ROTA.chegou = false;
+  ROTA.auto = false; ROTA.ignoradas.delete(id);
   try { localStorage.setItem("ciclo_rota", id); } catch {}
   ligarGps();
   S.page = paginasExt().findIndex((x) => x.nome === "rota");
@@ -298,7 +300,9 @@ async function ativarRota(id) {
   toast("Seguindo: " + r.nome + " · " + fmtKm(r.dist) + " km");
 }
 function desativarRota() {
-  ROTA.ativa = null;
+  // parou uma rota reconhecida sozinha: nao reconhecer de novo neste pedal
+  if (ROTA.ativa && ROTA.auto) ROTA.ignoradas.add(ROTA.ativa.id);
+  ROTA.ativa = null; ROTA.auto = false;
   try { localStorage.removeItem("ciclo_rota"); } catch {}
   S.page = 0; montarPaginas();
 }
@@ -312,6 +316,7 @@ EXT.tick.push((t) => {
 
   if (loc.desvio > 50) {
     ROTA.fora++;
+    if (ROTA.auto) { if (ROTA.fora >= 20) largarRotaAuto(); return; }
     if (ROTA.fora === 8 || (ROTA.fora > 8 && (ROTA.fora - 8) % 45 === 0)) { beep(330, 300, 2); toast("Fora da rota: " + Math.round(loc.desvio) + " m"); }
   } else {
     if (ROTA.fora >= 8) { beep(1046, 120, 1); toast("De volta à rota"); }
@@ -324,6 +329,80 @@ EXT.tick.push((t) => {
     }
   }
   if (!ROTA.chegou && r.dist - loc.prog < 40 && loc.desvio < 50) { ROTA.chegou = true; beep(784, 220, 3); toast("Fim da rota"); }
+});
+
+/* ------------------------------------------------------------------------- */
+/* Reconhecer sozinho a rota salva (06/10/2026)                               */
+/* ------------------------------------------------------------------------- */
+
+/* Sem rota ativada, a cada 5 s compara a posicao com todas as rotas salvas.
+ * Vale a que ele esta pedalando NO SENTIDO dela, a ate 30 m, em 3 leituras
+ * seguidas e avancando 40 m — cruzar uma rota nao basta. Com mais de uma
+ * candidata, fica a que tem mais caminho pela frente. Saiu dela por 20 s,
+ * larga sem apitar e volta ao perfil pela via. */
+function carregarSalvas() {
+  if (ROTA.lendo) return;
+  ROTA.lendo = true;
+  todasRotas().then((l) => {
+    ROTA.salvas = l.filter((r) => r.pts && r.pts.length > 1 && r.cum).map((r) => {
+      let a = 90, b = -90, c = 180, d = -180;
+      for (const p of r.pts) { if (p[0] < a) a = p[0]; if (p[0] > b) b = p[0]; if (p[1] < c) c = p[1]; if (p[1] > d) d = p[1]; }
+      return { r, box: [a - 0.001, b + 0.001, c - 0.001, d + 0.001] };
+    });
+  }).catch(() => {}).then(() => { ROTA.lendo = false; });
+}
+
+function casarRota(r, lat, lon, rumoAtual) {
+  const p = [lat, lon], n = r.pts.length;
+  let b = null;
+  for (let i = 0; i < n - 1; i++) {
+    const s = distSeg(p, r.pts[i], r.pts[i + 1]);
+    if (s.d > 30 || (b && s.d >= b.d)) continue;
+    if (difAng(rumoAtual, rumo(r.pts[i], r.pts[Math.min(n - 1, i + 3)])) > 45) continue;
+    b = { d: s.d, i, prog: r.cum[i] + s.t * (r.cum[i + 1] - r.cum[i]) };
+  }
+  return b;
+}
+
+function seguirSozinho(r, c) {
+  ROTA.ativa = r; ROTA.auto = true; ROTA.idx = c.i; ROTA.prog = c.prog; ROTA.desvio = c.d;
+  ROTA.fora = 0; ROTA.avisos = {}; ROTA.chegou = false; ROTA.cands = {};
+  // a pagina da rota entra antes das dele: mantem na tela a que ele estava vendo
+  const ir = paginasExt().findIndex((x) => x.nome === "rota");
+  if (ir >= 0 && S.page >= ir) S.page++;
+  montarPaginas();
+  desenharRotaNoMapa(true);
+  toast("Rota reconhecida: " + r.nome + " · faltam " + fmtDist(r.dist - c.prog), 4000);
+}
+
+function largarRotaAuto() {
+  const ir = paginasExt().findIndex((x) => x.nome === "rota"), nome = ROTA.ativa.nome;
+  ROTA.ativa = null; ROTA.auto = false; ROTA.desvio = null; ROTA.cands = {};
+  if (ir >= 0 && S.page > ir) S.page--;
+  montarPaginas();
+  toast("Saiu de " + nome + " · perfil pela via");
+}
+
+EXT.tick.push((t) => {
+  if (ROTA.ativa || R.state !== "running" || t - ROTA.tAuto < 5000) return;
+  ROTA.tAuto = t;
+  const g = S.gps;
+  if (g.lat == null || t - g.t > 6000 || typeof EST === "undefined" || EST.rumo == null) return;
+  if (!ROTA.salvas) { carregarSalvas(); return; }
+  const agoraC = {};
+  let m = null;
+  for (const s of ROTA.salvas) {
+    const r = s.r;
+    if (ROTA.ignoradas.has(r.id) || g.lat < s.box[0] || g.lat > s.box[1] || g.lon < s.box[2] || g.lon > s.box[3]) continue;
+    const c = casarRota(r, g.lat, g.lon, EST.rumo);
+    if (!c || r.dist - c.prog < 300) continue;
+    const a = ROTA.cands[r.id];
+    const k = a && c.prog > a.prog ? { n: a.n + 1, prog0: a.prog0, prog: c.prog } : { n: 1, prog0: c.prog, prog: c.prog };
+    agoraC[r.id] = k;
+    if (k.n >= 3 && k.prog - k.prog0 >= 40 && (!m || r.dist - c.prog > m.r.dist - m.c.prog)) m = { r, c };
+  }
+  ROTA.cands = agoraC;
+  if (m) seguirSozinho(m.r, m.c);
 });
 
 /* ------------------------------------------------------------------------- */

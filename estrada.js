@@ -8,8 +8,9 @@
  *     mais próximo que aponta para o mesmo lado.
  *  3. Para onde a estrada vai: anda pela malha a partir dali. Em cada
  *     cruzamento segue a mesma via; se ela acaba, a saída mais reta, sem
- *     descer de categoria (rodovia → rua → terra) sem motivo. Num T, ou numa
- *     bifurcação sem saída óbvia, a previsão para no cruzamento.
+ *     descer de categoria (rodovia → rua → terra) sem motivo. Numa bifurcação
+ *     segue a saída mais reta; só num T, onde não há reto, a previsão para no
+ *     cruzamento. Entrou em outra via, o casamento seguinte recalcula tudo.
  *  4. Relevo: SRTM de 30 m (blocos Terrarium da AWS, grátis). Pontes e túneis
  *     são interpolados, porque o modelo mede o vale embaixo da ponte.
  *
@@ -36,7 +37,7 @@ const EST = {
   feito: [],             // [R.dist, altitude] do que já foi pedalado, de 20 em 20 m
   subida: null,          // subida em andamento ou logo à frente (modo ClimbPro)
 };
-const Z_VIAS = 14, Z_DEM = 13, CEL_SEG = 0.0005, Q_NO = 0.00002, ALCANCE = 2500, PASSO = 25;
+const Z_VIAS = 14, Z_DEM = 13, CEL_SEG = 0.0005, Q_NO = 0.00002, ALCANCE = 2000, PASSO = 25;
 const RANK = { motorway: 6, trunk: 6, primary: 5, secondary: 4, tertiary: 3, minor: 2, service: 1, track: 1, path: 0 };
 
 /* ------------------------------------------------------------------------- */
@@ -367,9 +368,9 @@ function seguirEstrada(c) {
         const desce = Math.max(0, de - para) * 12 + (para === 0 && de > 0 ? 100 : 0);
         return { e, giro, mesma, s: giro + (mesma ? -30 : 0) + desce };
       }).sort((a, b) => a.s - b.s);
-      const [m, seg] = cls;
-      // T: nenhuma saída segue reto. Bifurcação: duas saídas quase iguais.
-      if ((!m.mesma && m.giro > 60) || (seg && seg.s - m.s < 18 && seg.giro < 75)) { fim = "cruzamento"; break; }
+      const m = cls[0];
+      // T: nenhuma saída segue reto. Na bifurcação vale a mais reta (06/10/2026).
+      if (!m.mesma && m.giro > 60) { fim = "cruzamento"; break; }
       escolha = m.e;
     }
     const chave = no + ">" + escolha.to;
@@ -638,7 +639,7 @@ function desenharSubida(el, ctx, W, H, p, c) {
   const gAgora = Math.round(p.g[Math.min(1, p.g.length - 1)]);
 
   el.querySelector(".eAgora").textContent = "⛰ Subida · " + fmtDist(lenTotal) + " a " + fmtPct((ganhoTotal / Math.max(1, lenTotal)) * 100);
-  el.querySelector(".eDepois").textContent = s.ini > 0 ? "começa em " + fmtDist(s.ini) : s.aberta ? "topo além de 2.5 km" : feito.length ? "feito " + fmtDist(-xa) + " · ↑" + Math.round(es[i0] - es[0]) + " m" : "";
+  el.querySelector(".eDepois").textContent = s.ini > 0 ? "começa em " + fmtDist(s.ini) : s.aberta ? "topo além de " + fmtDist(ALCANCE) : feito.length ? "feito " + fmtDist(-xa) + " · ↑" + Math.round(es[i0] - es[0]) + " m" : "";
   el.querySelector(".eFonte").textContent = "";
 
   const rodape = Math.max(34, Math.min(46, H * 0.18)), topo = Math.min(62, H * 0.3), base = H - rodape - 16;

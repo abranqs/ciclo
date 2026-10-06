@@ -116,9 +116,10 @@ function abrirSync() {
     "<li>No celular ou computador, abra <b>github.com/settings/personal-access-tokens/new</b> (Fine-grained token).</li>" +
     "<li>Nome: <b>Ciclo celular</b>. Validade: 1 ano.</li>" +
     "<li>Repository access: <b>Only select repositories</b> → <b>ciclo-dados</b>.</li>" +
-    "<li>Permissions → Repository → <b>Contents: Read-only</b>. Nada mais.</li>" +
+    "<li>Permissions → <b>Add permissions</b> → marque <b>Contents</b> e <b>Issues</b>.</li>" +
+    "<li>Na tabela que aparece: <b>Contents: Read-only</b> e <b>Issues: Read and write</b>. Nada mais.</li>" +
     "<li>Gere, copie e cole aqui.</li></ol>" +
-    '<p class="hint">O token fica só neste aparelho e só consegue <b>ler</b> esse repositório. Se perder o celular, apague o token no GitHub.</p>';
+    '<p class="hint">O token fica só neste aparelho. Ele <b>lê</b> rotas, treinos e trechos desse repositório e cria uma issue para mandar o pedal ao computador. Se perder o celular, apague o token no GitHub.</p>';
   $("#sSalvar").addEventListener("click", async () => {
     const repo = $("#sRepo").value.trim(), tok = $("#sTok").value.trim();
     try { if (repo) localStorage.setItem("ciclo_repo", repo); if (tok) localStorage.setItem("ciclo_token", tok); } catch {}
@@ -228,6 +229,7 @@ async function enviarPedal(manual) {
       body: JSON.stringify({ title: titulo, body: JSON.stringify(p) }),
     });
     if (r.status === 201) { R.enviado = true; salvarMeta(); avisa("Enviado ao computador ✓", true); }
+    else if (r.status === 403) avisa("Não enviou: o token não tem a permissão Issues (Read and write)");
     else avisa("Não enviou (GitHub " + r.status + ") — toque para tentar de novo");
   } catch (e) { avisa("Não enviou: " + e.message); }
 }

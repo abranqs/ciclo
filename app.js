@@ -154,9 +154,9 @@ async function manterTela() {
   if (!cfg.wake || !("wakeLock" in navigator) || wl) return;
   try { wl = await navigator.wakeLock.request("screen"); wl.addEventListener("release", () => { wl = null; }); } catch {}
 }
-/* O Forerunner aceita UMA conexao Bluetooth com o celular. Se o Chrome segurar
- * a conexao de FC com o app fechado, o Garmin Connect para de sincronizar o
- * relogio. Entao, sem pedal em andamento, sair do app solta os sensores — e
+/* O relogio (Forerunner antes, Amazfit desde 19/10/2026) disputa a conexao
+ * Bluetooth com o app do fabricante. Se o Chrome segurar a conexao de FC com o
+ * app fechado, o Zepp pode parar de sincronizar o relogio. Entao, sem pedal em andamento, sair do app solta os sensores — e
  * encerrar o pedal tambem. Com pedal gravando, a conexao fica. */
 function soltarSensores(motivo) {
   let soltou = false;
@@ -183,15 +183,21 @@ async function conectar(tipo) {
     return;
   }
   try {
+    // O Amazfit (T-Rex 3 Pro desde 19/10/2026) nem sempre poe o servico de FC
+    // no anuncio Bluetooth, so o nome: o filtro por servico nao o lista. Para a
+    // FC, aceita tambem pelo nome e pede o servico como opcional.
+    const filtros = [{ services: [BLE[tipo].svc] }];
+    if (tipo === "hr") ["Amazfit", "T-Rex", "Zepp"].forEach((n) => filtros.push({ namePrefix: n }));
     const dev = await navigator.bluetooth.requestDevice({
-      filters: [{ services: [BLE[tipo].svc] }], optionalServices: ["battery_service"],
+      filters: filtros, optionalServices: [BLE[tipo].svc, "battery_service"],
     });
     const s = S[tipo];
     s.dev = dev; s.want = true; s.name = dev.name || "sensor";
     dev.addEventListener("gattserverdisconnected", () => desconectou(tipo));
     await abrirGatt(tipo);
   } catch (e) {
-    if (e && e.name !== "NotFoundError") toast("Não conectou: " + (e.message || e));
+    if (S[tipo].dev && !S[tipo].conn) esquecer(tipo);
+    if (e && e.name !== "NotFoundError") toast("Não conectou: " + (e.message || e), 5000);
   }
   render();
 }
@@ -199,7 +205,15 @@ async function conectar(tipo) {
 async function abrirGatt(tipo) {
   const s = S[tipo];
   const srv = await s.dev.gatt.connect();
-  const svc = await srv.getPrimaryService(BLE[tipo].svc);
+  let svc;
+  try { svc = await srv.getPrimaryService(BLE[tipo].svc); }
+  catch (e) {
+    if (tipo === "hr") {
+      s.want = false; try { srv.disconnect(); } catch {}
+      throw new Error("o relógio não está transmitindo FC. Ligue a transmissão de frequência cardíaca no relógio e tente de novo");
+    }
+    throw e;
+  }
   const ch = await svc.getCharacteristic(BLE[tipo].ch);
   await ch.startNotifications();
   ch.addEventListener("characteristicvaluechanged", tipo === "hr" ? aoFc : aoCsc);
@@ -424,7 +438,7 @@ async function encerrar() {
   salvarMeta();
   beep(784, 200, 2);
   EXT.encerrar.forEach((f) => f());
-  soltarSensores("Sensores desconectados — o relógio volta a sincronizar com o Garmin Connect");
+  soltarSensores("Sensores desconectados — o relógio volta a sincronizar com o Zepp");
   render(); abrirResumo();
 }
 
@@ -941,7 +955,7 @@ function abrirResumo() {
     '<button class="btn" id="bPc" style="width:100%;margin-top:8px">' + (R.enviado ? "Já enviado ao computador ✓" : "Enviar cadência ao computador") + '</button>' +
     '<p class="hint"><b>Garmin Connect:</b> connect.garmin.com → ícone de nuvem (Importar dados) → escolha o arquivo. ' +
     "<b>Strava:</b> strava.com/upload/select. Os dois corrigem a subida pelo mapa de relevo, que é mais confiável que o GPS do celular.</p>" +
-    '<p class="hint">Se usou o Forerunner em Corrida virtual para a FC, descarte essa atividade no relógio para não duplicar o treino.</p>';
+    '<p class="hint">Se você abriu um treino no relógio só para transmitir a FC, descarte essa atividade no relógio para não duplicar o pedal.</p>';
   $("#bTcx").addEventListener("click", baixarTcx);
   $("#bShare").addEventListener("click", compartilharTcx);
   $("#bPc").addEventListener("click", () => enviarPedal(true));

@@ -28,9 +28,13 @@ const PAGINAS_PADRAO = [
   [{ k: "alt" }, { k: "grade" }, { k: "gain" }, { k: "maxspeed" }, { k: "totaltime" }, { k: "clock" }, { k: "avgcad" }, { k: "hrTarget" }],
 ];
 
+/* Zonas de FC da bike por limiar (LTHR 164, FCmax 186): teto de Z1..Z5.
+ * Cor do campo, tempo em zona e o alerta padrao (Z2 = 139–151) saem daqui. */
+const TETOS_ZONA = [138, 151, 158, 165, 186];
+
 const CFG_PADRAO = {
-  fcmax: 185, fcrep: 57,
-  ceilOn: false, ceil: 146, floorOn: false, floor: 134,
+  fcmax: TETOS_ZONA[4], fcrep: 57,
+  ceilOn: false, ceil: TETOS_ZONA[1], floorOn: false, floor: TETOS_ZONA[0] + 1,
   autopause: true, apKmh: 3, avisoSubida: true,
   wheelMm: 2105,
   wake: true, vibrate: true, sound: true,
@@ -41,7 +45,13 @@ const CFG_PADRAO = {
 function carregarCfg() {
   try {
     const c = JSON.parse(localStorage.getItem("ciclo_cfg") || "{}");
-    return Object.assign({}, CFG_PADRAO, c, { pages: c.pages || PAGINAS_PADRAO });
+    // uma vez: o que ainda estava no padrao antigo de Karvonen (Z2 134–146, FCmax 185) passa ao padrao por limiar
+    if (!c.zonasLimiar) {
+      if (c.ceil === 146) delete c.ceil;
+      if (c.floor === 134) delete c.floor;
+      if (c.fcmax === 185) delete c.fcmax;
+    }
+    return Object.assign({}, CFG_PADRAO, c, { pages: c.pages || PAGINAS_PADRAO, zonasLimiar: true });
   } catch { return JSON.parse(JSON.stringify(CFG_PADRAO)); }
 }
 let cfg = carregarCfg();
@@ -77,6 +87,7 @@ let buf = [];
 /* ------------------------------------------------------------------------- */
 
 const agora = () => Date.now();
+const LACUNA_MS = 10000;   // mais que isso sem tick (tela apagada, navegador suspenso) e lacuna, nao pedal
 function hav(a, b) {
   const R0 = 6371000, t = Math.PI / 180;
   const dLa = (b.lat - a.lat) * t, dLo = (b.lon - a.lon) * t;
@@ -96,10 +107,9 @@ function toast(msg, ms = 2200) {
   clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("on"), ms);
 }
 
-/* zonas de Karvonen */
+/* zonas por limiar: piso de cada zona, tirado dos tetos (Z1 vale para qualquer FC ate o primeiro teto) */
 function cortes() {
-  const r = cfg.fcmax - cfg.fcrep;
-  return [0.5, 0.6, 0.7, 0.8, 0.9].map((p) => Math.round(cfg.fcrep + p * r));
+  return [1].concat(TETOS_ZONA.slice(0, 4).map((x) => x + 1));
 }
 function zonaDe(hr) {
   if (!hr) return 0;
@@ -317,6 +327,7 @@ function aoPos(p) {
   S.gps.lat = pt.lat; S.gps.lon = pt.lon;
 
   let v = c.speed != null && !isNaN(c.speed) ? c.speed : null;
+  if (t - R.lastTick > LACUNA_MS) S.gps.last = null;  // voltando de uma lacuna: nao liga os dois pontos em linha reta
   if (S.gps.last) {
     const d = hav(S.gps.last, pt), dt = (t - S.gps.last.t) / 1000;
     if (dt > 0 && d / dt > 25) return;               // salto > 90 km/h: descarta o ponto
@@ -451,8 +462,17 @@ const alerta = { acima: 0, abaixo: 0 };
 function tick() {
   const t = agora();
   if (R.state === "running" || R.state === "autopaused") {
-    const dt = Math.max(0, t - R.lastTick);
-    R.totalMs += dt;
+    // Tela apagada ou navegador suspenso: mais de 10 s sem tick e lacuna. Entra so
+    // no tempo total; nao conta como tempo pedalando, de volta nem em zona, e o GPS
+    // recomeca do ponto novo (sem somar a distancia em linha reta).
+    const decorrido = Math.max(0, t - R.lastTick);
+    const lacuna = decorrido > LACUNA_MS;
+    const dt = lacuna ? 0 : decorrido;
+    R.totalMs += decorrido;
+    if (lacuna) {
+      S.gps.last = null;
+      if (R.state === "running") toast("Ficou " + fmtT(decorrido) + " sem gravar (tela apagada?) — esse trecho não entra no tempo nem na distância", 6000);
+    }
     const v = velAtual();
 
     if (cfg.autopause && v != null) {
@@ -524,7 +544,7 @@ const media = (s, n) => (n ? Math.round(s / n) : null);
 
 const CAMPOS = {
   hr:        { lb: "FC", u: "bpm", v: () => hrAtual() ?? "--", zona: () => zonaDe(hrAtual()), stale: () => !hrAtual() },
-  hrzone:    { lb: "Zona", u: "Karvonen", v: () => (hrAtual() ? "Z" + zonaDe(hrAtual()) : "--"), zona: () => zonaDe(hrAtual()) },
+  hrzone:    { lb: "Zona", u: "limiar", v: () => (hrAtual() ? "Z" + zonaDe(hrAtual()) : "--"), zona: () => zonaDe(hrAtual()) },
   hrpct:     { lb: "% FC reserva", u: "%", v: () => { const h = hrAtual(); return h ? Math.round(((h - cfg.fcrep) / (cfg.fcmax - cfg.fcrep)) * 100) : "--"; } },
   avghr:     { lb: "FC média", u: "bpm", v: () => media(R.hrSum, R.hrN) ?? "--" },
   maxhr:     { lb: "FC máx", u: "bpm", v: () => R.maxHr || "--" },
@@ -687,7 +707,7 @@ function desenharZonas(el) {
   const c = cortes();
   leg.innerHTML = R.zoneMs.slice(1).map((ms, i) =>
     '<div><span style="color:' + COR_ZONA[i + 1] + ';font-weight:800">Z' + (i + 1) + '</span><b>' + fmtT(ms) +
-    '</b><small style="color:var(--mute)">' + c[i] + (i < 4 ? "–" + (c[i + 1] - 1) : "+") + '</small></div>').join("");
+    '</b><small style="color:var(--mute)">' + (i === 0 ? "≤" + (c[1] - 1) : c[i] + (i < 4 ? "–" + (c[i + 1] - 1) : "+")) + '</small></div>').join("");
 }
 
 function desenharMapa(cv) {
@@ -889,11 +909,11 @@ function abrirAjustes() {
   const N = (id, v, min, max, step = 1) => '<input type="number" id="' + id + '" value="' + v + '" min="' + min + '" max="' + max + '" step="' + step + '">';
   const C = (id, v) => '<input type="checkbox" id="' + id + '"' + (v ? " checked" : "") + ">";
   $("#settingsBody").innerHTML =
-    "<h3>Zonas de FC (Karvonen)</h3>" +
-    L("fcmax", "FC máxima", "", N("fcmax", cfg.fcmax, 120, 230)) +
-    L("fcrep", "FC de repouso", "", N("fcrep", cfg.fcrep, 30, 100)) +
-    '<p class="hint">Z1 ' + c[0] + "–" + (c[1] - 1) + " · Z2 " + c[1] + "–" + (c[2] - 1) + " · Z3 " + c[2] + "–" + (c[3] - 1) +
+    "<h3>Zonas de FC (limiar)</h3>" +
+    '<p class="hint">Por limiar (LTHR 164): Z1 até ' + (c[1] - 1) + " · Z2 " + c[1] + "–" + (c[2] - 1) + " · Z3 " + c[2] + "–" + (c[3] - 1) +
     " · Z4 " + c[3] + "–" + (c[4] - 1) + " · Z5 " + c[4] + "+</p>" +
+    L("fcmax", "FC máxima", "só para o campo % FC reserva", N("fcmax", cfg.fcmax, 120, 230)) +
+    L("fcrep", "FC de repouso", "só para o campo % FC reserva", N("fcrep", cfg.fcrep, 30, 100)) +
     "<h3>Alertas de FC</h3>" +
     L("ceilOn", "Avisar acima de", "3 bipes + vibração depois de 5 s acima", '<span>' + C("ceilOn", cfg.ceilOn) + " " + N("ceil", cfg.ceil, 80, 220) + "</span>") +
     L("floorOn", "Avisar abaixo de", "depois de 20 s abaixo, pedalando", '<span>' + C("floorOn", cfg.floorOn) + " " + N("floor", cfg.floor, 60, 200) + "</span>") +

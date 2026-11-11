@@ -5,7 +5,7 @@ App web instalável (PWA) para Android que faz o papel de um Edge no guidão:
 - **GPS do celular**: velocidade, distância, trajeto e altitude estimada
 - **Frequência cardíaca por Bluetooth**: Garmin em modo de transmissão ou cinta peitoral
 - **Cadência/velocidade por Bluetooth**: sensores no padrão CSC, como o XOSS
-- **Zonas de Karvonen** (FCmax 185 / repouso 57, ajustáveis) com a cor da zona no campo de FC
+- **Zonas de FC por limiar** (LTHR 164, FCmax 186; tetos Z1–Z5 = 138, 151, 158, 165, 186) com a cor da zona no campo de FC
 - **Alertas de FC** acima ou abaixo de um limite, com bipe e vibração
 - **Páginas de campos à sua escolha**: segure um campo para trocá-lo, adicionar ou remover campos (até 12 espaços por página), mudar largura, altura e ordem, ou criar e apagar páginas (até 10)
 - **Voltas e pausa automática**

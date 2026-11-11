@@ -1,7 +1,7 @@
 {
   "name": "Ciclo — computador de bordo",
   "short_name": "Ciclo",
-  "description": "Computador de bordo de ciclismo: GPS do celular, FC e cadência por Bluetooth, rotas e treinos do Garmin, mapa de satélite e exportação TCX.",
+  "description": "Computador de bordo de ciclismo: GPS do celular, FC e cadência por Bluetooth, rotas e treinos do seu plano, mapa de satélite, histórico de pedais e exportação TCX.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

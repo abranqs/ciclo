@@ -491,8 +491,8 @@ function desenharPerfil(cv, r) {
   ctx.fillStyle = css.getPropertyValue("--txt").trim() || "#fff"; ctx.fillRect(px - 1, 0, 2, H);
   const ep = pontoEm(r, ROTA.prog)[2];
   if (ep != null) { ctx.beginPath(); ctx.arc(px, Y(ep), 5, 0, 7); ctx.fill(); }
-  ctx.font = "600 11px Roboto,sans-serif"; ctx.textAlign = "left"; ctx.fillStyle = css.getPropertyValue("--mute");
-  ctx.fillText(Math.round(mx) + " m", 4, 12); ctx.fillText(Math.round(mn) + " m", 4, H - 6);
+  ctx.font = "600 12px Roboto,sans-serif"; ctx.textAlign = "left"; ctx.fillStyle = css.getPropertyValue("--mute");
+  ctx.fillText(Math.round(mx) + " m", 4, 13); ctx.fillText(Math.round(mn) + " m", 4, H - 6);
 }
 
 function subidaRestante(r) {
@@ -544,7 +544,7 @@ EXT.paginas.push({
     else { sec.querySelector("#rSeta").textContent = "↑"; sec.querySelector("#rCueD").textContent = fmtDist(falta); sec.querySelector("#rCueT").textContent = "até o fim"; }
     const g = inclinacaoAFrente(r), rel = typeof textoRelevo === "function" ? textoRelevo() : "";
     sec.querySelector("#rDes").textContent = rel || (g == null ? "" : (g >= 0 ? "↗ " : "↘ ") + g.toFixed(1) + "% nos próximos 400 m");
-    if (!visivel) return;
+    if (!visivel || !mapaMudou(sec, ROTA.seguir)) return;     // mapa e perfil: no maximo a cada 3 s, e so se andou
     desenharPerfil(sec.querySelector("#rPerfil"), r);
     const m = ROTA.mapa; if (!m) return;
     if (!ROTA.linhaTrack) ROTA.linhaTrack = L.polyline([], { color: "#3aa0ff", weight: 4, opacity: 0.95 }).addTo(m);
@@ -579,7 +579,7 @@ function segurarMapa(div, el) {
       tm = null;
       const sec = el.closest(".page");
       const p = sec ? Number(sec.dataset.p) - paginasExt().length : -1, idx = Number(el.dataset.i);
-      if (p < 0 || !cfg.pages[p] || !cfg.pages[p][idx]) return;
+      if (p < 0 || !cfg.pages[p] || !cfg.pages[p][idx] || !podeEditarCampos()) return;
       if (navigator.vibrate) navigator.vibrate(30);
       abrirTroca(p, idx);
     }, 650);
@@ -607,7 +607,7 @@ desenharMapa = function (cv) {
     m = { el, mapa, camada: null, layer: null, track: L.polyline([], { color: "#3aa0ff", weight: 4 }).addTo(mapa),
           rota: null, rotaId: null, pos: null, seguir: true };
     mapa.on("dragstart", () => { m.seguir = false; });
-    mapa.on("dblclick", () => { m.seguir = true; });
+    mapa.on("dblclick", () => { m.seguir = true; el._mapa = null; });
     div.addEventListener("touchstart", (e) => e.stopPropagation(), { passive: true });
     div.addEventListener("touchend", (e) => e.stopPropagation());
     segurarMapa(div, el);
@@ -667,20 +667,21 @@ const linkEarthInicio = (r) => "https://earth.google.com/web/@" + r.pts[0][0].to
 /* Biblioteca de rotas                                                        */
 /* ------------------------------------------------------------------------- */
 
-const ORIGEM = { garmin: "Garmin", "google-earth": "Google Earth", arquivo: "arquivo" };
+/* "garmin" e so a chave das rotas que vem do computador (treino-ia) pela sincronizacao; o nome ficou do tempo do Garmin */
+const ORIGEM = { garmin: "computador", "google-earth": "Google Earth", arquivo: "arquivo" };
 
 async function abrirRotas() {
   const lista = (await todasRotas()).sort((a, b) => (a.origem === b.origem ? a.nome.localeCompare(b.nome) : a.origem === "garmin" ? -1 : 1));
   const body = $("#rotasBody");
   body.innerHTML =
     '<div class="grid2"><label class="btn main" style="text-align:center">Importar arquivo<input type="file" id="fRota" accept=".gpx,.tcx,.kml,.kmz,application/gpx+xml,application/vnd.google-earth.kml+xml,application/vnd.google-earth.kmz" hidden></label>' +
-    '<button class="btn" id="bSyncR">Buscar do Garmin</button></div>' +
-    '<p class="hint">GPX/TCX do Garmin Connect ou Strava, KML/KMZ do Google Earth. Também dá para usar o <b>Compartilhar</b> do Android direto para o Ciclo.</p>' +
-    (ROTA.ativa ? '<div class="sensor"><div class="top"><div><b>Seguindo agora</b><div class="st">' + ROTA.ativa.nome + '</div></div><button class="btn" id="bParar" style="background:var(--bad)">Parar</button></div></div>' : "") +
+    '<button class="btn" id="bSyncR">Buscar do computador</button></div>' +
+    '<p class="hint">GPX/TCX de qualquer app (Strava, Komoot, Garmin Connect), KML/KMZ do Google Earth. Também dá para usar o <b>Compartilhar</b> do Android direto para o Ciclo.</p>' +
+    (ROTA.ativa ? '<div class="sensor"><div class="top"><div><b>Seguindo agora</b><div class="st">' + esc(ROTA.ativa.nome) + '</div></div><button class="btn" id="bParar" style="background:var(--bad)">Parar</button></div></div>' : "") +
     (lista.length ? "" : '<p class="hint">Nenhuma rota ainda.</p>') +
     lista.map((r) =>
-      '<div class="sensor rItem" data-id="' + r.id + '"><div class="top"><div><b>' + r.nome.replace(/</g, "&lt;") + "</b><div class=\"st num\">" +
-      fmtKm(r.dist) + " km · ↑" + r.gain + " m · " + (ORIGEM[r.origem] || r.origem) + (r.curvas.length ? " · " + r.curvas.length + " curvas" : "") +
+      '<div class="sensor rItem" data-id="' + esc(r.id) + '"><div class="top"><div><b>' + esc(r.nome) + "</b><div class=\"st num\">" +
+      fmtKm(r.dist) + " km · ↑" + esc(r.gain) + " m · " + esc(ORIGEM[r.origem] || r.origem) + (r.curvas.length ? " · " + r.curvas.length + " curvas" : "") +
       '</div></div><button class="btn" data-a="seguir">Seguir</button></div>' +
       '<div class="acoes"><button data-a="earth">Google Earth</button><a href="' + linkMapsInicio(r) + '" target="_blank" rel="noopener">Ir ao início</a>' +
       '<a href="' + linkEarthInicio(r) + '" target="_blank" rel="noopener">Earth web</a>' + (r.origem !== "garmin" ? '<button data-a="apagar">Apagar</button>' : "") + "</div></div>").join("");
@@ -703,7 +704,7 @@ async function abrirRotas() {
   abrir("dlgRotas");
 }
 
-EXT.menu.push({ txt: "Rotas", sub: () => (ROTA.ativa ? "seguindo " + ROTA.ativa.nome : "Garmin, Google Earth, GPX"), fn: abrirRotas });
+EXT.menu.push({ txt: "Rotas", sub: () => (ROTA.ativa ? "seguindo " + ROTA.ativa.nome : "computador, Google Earth, GPX"), fn: abrirRotas });
 
 /* restaura a rota ativa depois de recarregar */
 document.addEventListener("DOMContentLoaded", () => {

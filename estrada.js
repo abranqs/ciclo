@@ -615,7 +615,7 @@ function desenharEstrada(el) {
     ctx.closePath(); ctx.fillStyle = corGrade((p.g[i - 1] + p.g[i]) / 2); ctx.fill();
   }
   const css = getComputedStyle(document.documentElement), mute = css.getPropertyValue("--mute").trim() || "#8b919a";
-  ctx.fillStyle = mute; ctx.font = "600 10px Roboto,sans-serif"; ctx.textAlign = "center";
+  ctx.fillStyle = mute; ctx.font = "600 12px Roboto,sans-serif"; ctx.textAlign = "center";
   for (let d = 500; d < esc; d += 500) { ctx.fillRect(X(d), base, 1, 4); ctx.fillText(d % 1000 ? "" : d / 1000 + " km", X(d), H - 3); }
   if (p.fim === "cruzamento") { ctx.fillStyle = css.getPropertyValue("--txt").trim() || "#fff"; ctx.fillRect(X(p.dist) - 1, topo, 2, base - topo); }
   ctx.fillStyle = "#fff"; ctx.strokeStyle = "#000"; ctx.lineWidth = 2;

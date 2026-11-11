@@ -3,24 +3,26 @@
 App web instalável (PWA) para Android que faz o papel de um Edge no guidão:
 
 - **GPS do celular**: velocidade, distância, trajeto e altitude estimada
-- **Frequência cardíaca por Bluetooth**: Garmin em modo de transmissão ou cinta peitoral
+- **Frequência cardíaca por Bluetooth**: Amazfit T-Rex 3 Pro com a transmissão de FC ligada, ou cinta peitoral. Se o sensor cai, o app avisa uma vez, mostra "reconectando…" e tenta de novo sozinho (2, 5, 10, 20 s e depois a cada 30 s enquanto o pedal durar)
 - **Cadência/velocidade por Bluetooth**: sensores no padrão CSC, como o XOSS
 - **Zonas de FC por limiar** (LTHR 164, FCmax 186; tetos Z1–Z5 = 138, 151, 158, 165, 186) com a cor da zona no campo de FC
 - **Alertas de FC** acima ou abaixo de um limite, com bipe e vibração
 - **Páginas de campos à sua escolha**: segure um campo para trocá-lo, adicionar ou remover campos (até 12 espaços por página), mudar largura, altura e ordem, ou criar e apagar páginas (até 10)
 - **Voltas e pausa automática**
 - **Gravação à prova de queda**: salva a cada 10 s; se o navegador fechar, o pedal volta pausado
-- **Exporta TCX** para o Garmin Connect e o Strava (FC, cadência, trajeto, voltas)
+- **Histórico**: os 30 pedais mais recentes ficam no celular (Menu → Histórico), com resumo, TCX para baixar de novo e apagar
+- **Trava de tela**: o cadeado ao lado de Pausar bloqueia toques de suor, chuva e luva; só Volta e Pausar respondem. Segure o cadeado 1,5 s para destravar. Com o pedal rodando, segurar um campo não abre o editor
+- **Exporta TCX** para o Strava e o intervals.icu (FC, cadência, trajeto, voltas)
 - **Funciona sem internet** depois de instalado
 
 Endereço: https://abranqs.github.io/ciclo/ · teste sem sensores: https://abranqs.github.io/ciclo/?demo=1
 
-## Rotas e treinos do Garmin
+## Rotas e treinos
 
-- **Treinos**: os treinos de bike do seu calendário do Garmin Connect, incluindo os do ciclo enviados pelo treino-ia, são executados passo a passo. A tela mostra tempo restante, alvo de FC com a faixa desenhada, contagem 3-2-1 e bipe quando você sai do alvo. Cada passo vira uma volta no TCX.
-- **Rotas**: seus cursos de bike do Garmin Connect, ou GPX/TCX de qualquer lugar, ou KML/KMZ desenhados no **Google Earth**. Na tela da rota: mapa de **satélite**, ruas ou relevo, próxima curva com aviso aos 200 m, alerta de saída da rota, distância e subida restantes, hora estimada de chegada e perfil de altimetria.
+- **Treinos**: os treinos de bike do seu plano, publicados pelo treino-ia, são executados passo a passo. A tela mostra tempo restante, alvo de FC com a faixa desenhada, contagem 3-2-1 e bipe quando você sai do alvo. Cada passo vira uma volta no TCX.
+- **Rotas**: as rotas publicadas pelo treino-ia, ou GPX/TCX de qualquer app, ou KML/KMZ desenhados no **Google Earth**. Na tela da rota: mapa de **satélite**, ruas ou relevo, próxima curva com aviso aos 200 m, alerta de saída da rota, distância e subida restantes, hora estimada de chegada e perfil de altimetria.
 - **Google Earth**: botão que abre a rota no app do Google Earth (em 3D) e link para o Google Maps até o início. Rotas do Earth sem altitude ganham altimetria pelo relevo Copernicus (Open-Meteo).
-- **De onde vêm**: o treino-ia, no computador, publica treinos e rotas no repositório **privado** `abranqs/ciclo-dados` a cada sincronização. O app lê com um token só de leitura, configurado em Menu → Sincronização. Arquivos também entram pelo **Compartilhar** do Android.
+- **De onde vêm**: o treino-ia, no computador, publica treinos e rotas no repositório **privado** `abranqs/ciclo-dados` a cada sincronização. O app lê com um token (Contents: leitura; Issues: escrita, para mandar o pedal ao computador), configurado em Menu → Sincronização. Arquivos também entram pelo **Compartilhar** do Android.
 
 O que funciona sem internet: treino, linha da rota, curvas, desvio e altimetria. O fundo do mapa precisa de sinal; o que você já viu fica guardado.
 
@@ -42,23 +44,22 @@ Campo embaixo do mapa, na 4ª página. Ocupa duas linhas de altura. Mostra o per
 2. Menu ⋮ → **Adicionar à tela inicial** (ou **Instalar app**).
 3. Deixe Bluetooth e Localização ligados.
 
-## FC do Forerunner 245
+## FC do Amazfit T-Rex 3 Pro
 
-O FR245 só transmite FC por Bluetooth dentro da atividade **Corrida virtual**:
+1. No relógio, ligue a **transmissão de frequência cardíaca** (Heart rate broadcast / Compartilhar FC).
+2. No Ciclo: Sensores → Frequência cardíaca → **Conectar** → escolha o relógio na lista. Se ele não aparecer, desligue e ligue a transmissão de novo, com o relógio perto do celular.
+3. O app solta o relógio sozinho ao encerrar o pedal, ou ao sair dele parado, para não atrapalhar a sincronização com o Zepp.
+4. Se você abriu um treino no relógio só para transmitir a FC, **descarte** essa atividade no relógio, para não duplicar o pedal.
 
-1. No relógio: iniciar atividade → **Corrida virtual**. Se ela não aparecer, adicione em Configurações → Atividades e apps → Adicionar.
-2. Deixe o relógio nessa tela.
-3. No Ciclo: Sensores → Frequência cardíaca → **Conectar** → escolha o Forerunner.
-4. Ao fim do pedal, **descarte** a corrida virtual no relógio, para não duplicar a atividade.
-
-Uma cinta peitoral Bluetooth dispensa isso e mede melhor no ciclismo: o sensor de pulso sofre com a vibração e com a pegada no guidão.
+Uma cinta peitoral Bluetooth mede melhor no ciclismo: o sensor de pulso sofre com a vibração e com a pegada no guidão.
 
 ## Limites (honestos)
 
 - **A tela precisa ficar ligada.** O Android suspende o navegador com a tela apagada. O app pede para manter a tela acesa; use suporte de guidão e, em pedal longo, uma bateria externa.
-- **A altitude vem do GPS**, com margem de ±10–20 m. A subida mostrada é uma estimativa filtrada. O número confiável é o que o Garmin Connect ou o Strava calculam pelo mapa de relevo quando você importa o arquivo.
+- **A altitude vem do GPS**, com margem de ±10–20 m. A subida mostrada é uma estimativa filtrada. O número confiável é o que o Strava calcula pelo mapa de relevo quando você importa o arquivo.
 - **Os sensores precisam ser pareados de novo a cada abertura do app.** O navegador não guarda o pareamento; são dois toques.
 
-## Mandar o pedal para o Garmin Connect
+## Levar o pedal para fora do celular
 
-Resumo → **Baixar TCX**. Depois, em connect.garmin.com → ícone de nuvem (Importar dados) → escolha o arquivo.
+- **TCX**: Resumo (ou Menu → Histórico) → **Baixar TCX**. O Strava importa em strava.com/upload/select; o intervals.icu também aceita o arquivo.
+- **Cadência para o computador**: ao encerrar, o app manda as séries de cadência, FC e velocidade para o treino-ia. Se não houver sinal, o pedal fica marcado **a enviar** no Histórico e vai sozinho quando a rede voltar ou na próxima vez que o app abrir; o botão **Enviar agora** força. Um pedal já aceito não é enviado de novo.

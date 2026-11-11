@@ -1,9 +1,9 @@
-/* Treinos estruturados: os mesmos que estao no calendario do Garmin.
+/* Treinos estruturados: os do plano, publicados pelo treino-ia (computador).
  *
- * O app executa passo a passo como o Edge: tempo (ou distancia) restante do
- * passo, alvo de FC com a faixa desenhada, aviso de 3-2-1 antes de trocar,
- * bipe quando a FC sai do alvo. Cada troca de passo vira uma volta, entao o
- * TCX exportado chega no Garmin Connect com uma volta por passo.
+ * O app executa passo a passo como um ciclocomputador: tempo (ou distancia)
+ * restante do passo, alvo de FC com a faixa desenhada, aviso de 3-2-1 antes de
+ * trocar, bipe quando a FC sai do alvo. Cada troca de passo vira uma volta,
+ * entao o TCX exportado sai com uma volta por passo.
  */
 "use strict";
 
@@ -187,16 +187,16 @@ async function abrirTreinos() {
   const sync = (() => { try { return JSON.parse(localStorage.getItem("ciclo_sync") || "null"); } catch { return null; } })();
   const body = $("#treinosBody");
   body.innerHTML =
-    '<div class="grid2"><button class="btn main" id="bSyncT">Buscar do Garmin</button><label class="btn" style="text-align:center">Importar arquivo<input type="file" id="fTreino" accept=".json,application/json" hidden></label></div>' +
+    '<div class="grid2"><button class="btn main" id="bSyncT">Buscar do computador</button><label class="btn" style="text-align:center">Importar arquivo<input type="file" id="fTreino" accept=".json,application/json" hidden></label></div>' +
     '<p class="hint">' + (sync ? "Última busca " + new Date(sync.t).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) + " · " : "") +
-    "Treinos de bike do seu calendário do Garmin, incluindo os do ciclo.</p>" +
-    (TREINO.ativo ? '<div class="sensor"><div class="top"><div><b>Em andamento</b><div class="st">' + TREINO.ativo.nome + " · passo " + Math.min(TREINO.i + 1, TREINO.ativo.passos.length) + "/" + TREINO.ativo.passos.length + '</div></div><button class="btn" id="bPararT" style="background:var(--bad)">Parar</button></div></div>' : "") +
+    "Treinos de bike do seu plano, publicados pelo treino-ia no computador.</p>" +
+    (TREINO.ativo ? '<div class="sensor"><div class="top"><div><b>Em andamento</b><div class="st">' + esc(TREINO.ativo.nome) + " · passo " + Math.min(TREINO.i + 1, TREINO.ativo.passos.length) + "/" + TREINO.ativo.passos.length + '</div></div><button class="btn" id="bPararT" style="background:var(--bad)">Parar</button></div></div>' : "") +
     (lista.length ? "" : '<p class="hint">Nenhum treino de bike nos próximos dias. Configure a sincronização em Menu → Sincronização, ou importe um arquivo.</p>') +
     lista.map((t) =>
-      '<div class="sensor tItem' + (t.data === hoje ? " hoje" : "") + '" data-id="' + t.id + '"><div class="top"><div><b>' + (t.data === hoje ? "HOJE · " : dataBr(t.data) + " · ") + t.nome.replace(/</g, "&lt;") +
-      '</b><div class="st">' + t.duracao_min + " min · " + t.passos.length + ' passos</div></div><button class="btn" data-a="usar">Usar</button></div>' +
-      '<details><summary>ver passos</summary><table>' + t.passos.map((p, i) => "<tr><td>" + (i + 1) + ". " + rotuloPasso(p) + "</td><td class=num>" + duracaoPasso(p) + "</td><td class=num>" + textoAlvo(p) + "</td></tr>").join("") +
-      "</table>" + (t.descricao ? '<p class="hint" style="white-space:pre-line">' + t.descricao.replace(/</g, "&lt;").slice(0, 700) + "</p>" : "") + "</details></div>").join("");
+      '<div class="sensor tItem' + (t.data === hoje ? " hoje" : "") + '" data-id="' + esc(t.id) + '"><div class="top"><div><b>' + (t.data === hoje ? "HOJE · " : esc(dataBr(t.data)) + " · ") + esc(t.nome) +
+      '</b><div class="st">' + esc(t.duracao_min) + " min · " + t.passos.length + ' passos</div></div><button class="btn" data-a="usar">Usar</button></div>' +
+      '<details><summary>ver passos</summary><table>' + t.passos.map((p, i) => "<tr><td>" + (i + 1) + ". " + esc(rotuloPasso(p)) + "</td><td class=num>" + esc(duracaoPasso(p)) + "</td><td class=num>" + esc(textoAlvo(p)) + "</td></tr>").join("") +
+      "</table>" + (t.descricao ? '<p class="hint" style="white-space:pre-line">' + esc(String(t.descricao).slice(0, 700)) + "</p>" : "") + "</details></div>").join("");
   body.querySelector("#bSyncT").addEventListener("click", async () => { await sincronizar(false); abrirTreinos(); });
   body.querySelector("#fTreino").addEventListener("change", async (e) => {
     try { const n = await importarPacote(JSON.parse(await e.target.files[0].text())); toast(n.treinos + " treinos, " + n.rotas + " rotas importados"); }
@@ -211,7 +211,7 @@ async function abrirTreinos() {
   abrir("dlgTreinos");
 }
 
-EXT.menu.push({ txt: "Treinos", sub: () => (TREINO.ativo ? "em andamento: " + TREINO.ativo.nome : "do calendário do Garmin"), fn: abrirTreinos });
+EXT.menu.push({ txt: "Treinos", sub: () => (TREINO.ativo ? "em andamento: " + TREINO.ativo.nome : "do seu plano de treino"), fn: abrirTreinos });
 
 /* treino do dia: aviso na tela inicial; restaura o treino em andamento */
 async function avisarTreinoDoDia() {
@@ -219,7 +219,7 @@ async function avisarTreinoDoDia() {
   const t = (await todosTreinos()).find((x) => x.data === hojeIso());
   if (!t) return;
   const bn = $("#banner");
-  bn.innerHTML = "Treino de hoje: <b>" + t.nome.replace(/</g, "&lt;") + "</b> · " + t.duracao_min + " min — toque para usar";
+  bn.innerHTML = "Treino de hoje: <b>" + esc(t.nome) + "</b> · " + esc(t.duracao_min) + " min — toque para usar";
   bn.classList.add("on");
   bn.onclick = () => { bn.classList.remove("on"); bn.onclick = null; ativarTreino(t); };
 }

@@ -61,16 +61,16 @@ function desenharTrecho() {
     const delta = ref == null ? null : dec - ref;
     const falta = Math.max(0, v.t.dist_m - dd);
     el.style.display = "block";
-    el.innerHTML = '<div style="font-size:12px;opacity:.8">TRECHO · ' + esc(v.t.nome) + "</div>" +
+    el.innerHTML = '<div style="font-size:13px;opacity:.85">TRECHO · ' + esc(v.t.nome) + "</div>" +
       '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:2px">' +
       '<span class="num" style="font-size:22px">' + fmtMS(dec) + "</span>" +
       '<span class="num" style="font-size:26px;color:' + (delta == null ? "#fff" : delta <= 0 ? "#5fd35f" : "#ff6b5b") + '">' +
       (delta == null ? "--" : fmtDelta(delta)) + "</span>" +
       '<span class="num" style="font-size:16px">falta ' + (falta >= 1000 ? (falta / 1000).toFixed(1) + " km" : Math.round(falta) + " m") + "</span></div>" +
-      '<div style="font-size:11px;opacity:.7">recorde ' + fmtMS(v.t.recorde.tempo_s) + " em " + v.t.recorde.data.split("-").reverse().slice(0, 2).join("/") + "</div>";
+      '<div style="font-size:12px;opacity:.8">recorde ' + fmtMS(v.t.recorde.tempo_s) + " em " + esc(String(v.t.recorde.data).split("-").reverse().slice(0, 2).join("/")) + "</div>";
   } else if (r && agora() < r.ate) {
     el.style.display = "block";
-    el.innerHTML = '<div style="font-size:12px;opacity:.8">TRECHO CONCLUÍDO · ' + esc(r.t.nome) + "</div>" +
+    el.innerHTML = '<div style="font-size:13px;opacity:.85">TRECHO CONCLUÍDO · ' + esc(r.t.nome) + "</div>" +
       '<div class="num" style="font-size:24px;margin-top:2px">' + fmtMS(r.tempo) + " " +
       '<span style="color:' + (r.delta <= 0 ? "#5fd35f" : "#ff6b5b") + '">' + (r.delta <= 0 ? "NOVO RECORDE " : "") + fmtDelta(r.delta) + "</span></div>";
   } else {

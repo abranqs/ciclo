@@ -13,6 +13,8 @@
     --bg:#0b0c0e; --card:#16181c; --line:#26292f; --txt:#f2f3f5; --mute:#8b919a;
     --acc:#eb6834; --ok:#1baf7a; --warn:#eda100; --bad:#d03b3b;
     --z0:#4b5160; --z1:#5b9bd9; --z2:#1baf7a; --z3:#eda100; --z4:#eb6834; --z5:#d03b3b;
+    /* texto sobre cada zona: escuro nas claras, branco so no vermelho — contraste >= 4,5:1 */
+    --zt1:#0b0c0e; --zt2:#0b0c0e; --zt3:#0b0c0e; --zt4:#0b0c0e; --zt5:#fff;
   }
   :root[data-theme="light"]{
     --bg:#ffffff; --card:#f1f2f4; --line:#d7dae0; --txt:#0b0c0e; --mute:#5a606a;
@@ -42,40 +44,53 @@
     align-items:center;min-width:0;min-height:0;position:relative;overflow:hidden;padding:4px 6px;container-type:size}
   .f.full{grid-column:span 2}
   .f.tall{grid-row:span 2}
-  .f .lb{font-size:12px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--mute);line-height:1.1}
+  .f .lb{font-size:13px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--mute);line-height:1.1}
   .f .v{font-weight:800;line-height:1;letter-spacing:-.02em;font-size:clamp(34px,12.5vw,76px);white-space:nowrap}
   .f.full .v{font-size:clamp(56px,25vw,150px)}
   /* com muitos campos a linha fica baixa: o número acompanha o tamanho do campo */
   @supports (container-type:size){
-    .f .v{font-size:clamp(18px,min(25cqw,56cqh),76px)}
-    .f.full .v{font-size:clamp(22px,min(25cqw,62cqh),150px)}
-    .f .lb{font-size:clamp(9px,11cqh,12px)}
-    .f .u{font-size:clamp(9px,11cqh,13px)}
+    .f .v{font-size:clamp(18px,min(25cqw,52cqh),76px)}
+    .f.full .v{font-size:clamp(22px,min(25cqw,58cqh),150px)}
+    /* rotulo e unidade nunca abaixo de 12 px: quem cede espaco e o numero */
+    .f .lb{font-size:clamp(12px,11cqh,14px)}
+    .f .u{font-size:clamp(12px,11cqh,14px)}
   }
   .f .u{font-size:13px;font-weight:600;color:var(--mute);margin-top:2px}
-  .f.zoned{color:#fff} .f.zoned .lb,.f.zoned .u{color:rgba(255,255,255,.85)}
+  /* a cor do texto sobre a zona vem do app (--zt1..5), igual para numero, rotulo e unidade */
+  .f.zoned .lb,.f.zoned .u{color:inherit}
   .f.stale .v{opacity:.35}
+  .f.aviso .u{color:var(--txt);font-weight:800}
+  .f.zoned.aviso .u{color:inherit}
   .f canvas{position:absolute;inset:0;width:100%;height:100%}
   .zb{width:100%;padding:4px 6px}
   .f[data-k="estrada"]{justify-content:flex-start;align-items:stretch}
   .eTxt{position:relative;z-index:1;padding:2px 4px;line-height:1.15;text-shadow:0 1px 3px var(--bg)}
   .eTxt b{display:block;font-size:clamp(17px,5.4vw,26px);font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .eTxt span{display:block;font-size:14px;font-weight:600;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .eFonte{position:absolute;right:8px;bottom:2px;z-index:1;font-size:10px;color:var(--mute);font-weight:600}
+  .eFonte{position:absolute;right:8px;bottom:2px;z-index:1;font-size:12px;color:var(--mute);font-weight:600}
   .zb .bar{display:flex;height:22px;border-radius:6px;overflow:hidden;background:var(--line)}
   .zb .bar span{height:100%}
-  .zb .leg{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;margin-top:6px;font-size:12px;text-align:center}
+  .zb .leg{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;margin-top:6px;font-size:13px;text-align:center}
   .zb .leg b{display:block;font-size:15px}
+  .zb .leg small{font-size:12px}
+  .zl{display:inline-block;padding:1px 7px;border-radius:5px;font-weight:800}
   #dots{display:flex;justify-content:center;gap:6px;padding:4px}
   #dots i{width:7px;height:7px;border-radius:50%;background:var(--line)}
   #dots i.on{background:var(--txt)}
 
   /* controls */
   #controls{display:grid;grid-template-columns:1fr 1.6fr 1fr;gap:6px;padding:6px 6px 8px}
+  #controls.c4{grid-template-columns:1.15fr 1.4fr .55fr .9fr}
+  #controls.c4 .btn{padding-left:4px;padding-right:4px}
+  #bTrava{padding:16px 0;font-size:22px}
+  #bTrava.on{background:var(--warn);color:#111}
+  #bTrava.hold::after{height:6px;background:#111}
+  #bTrava.pisca{outline:4px solid var(--txt);outline-offset:-4px}
+  body.travado #controls .btn:not([data-livre]):not(#bTrava){opacity:.35}
   button{font:inherit}
   .btn{border:0;border-radius:14px;padding:16px 8px;font-weight:800;font-size:16px;background:var(--card);color:var(--txt);
     letter-spacing:.02em;min-height:58px}
-  .btn.main{background:var(--ok);color:#fff;font-size:19px}
+  .btn.main{background:var(--ok);color:#0b0c0e;font-size:19px}
   .btn.pause{background:var(--warn);color:#111}
   .btn.stop{background:var(--bad);color:#fff}
   .btn:disabled{opacity:.35}
@@ -113,7 +128,7 @@
   .hint b{color:var(--txt)}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .kv{background:var(--card);border-radius:10px;padding:10px}
-  .kv span{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+  .kv span{display:block;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
   .kv b{font-size:22px}
   table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
   th,td{padding:6px 4px;border-bottom:1px solid var(--line);text-align:right}
@@ -136,6 +151,8 @@
   .acoes{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
   .acoes button,.acoes a{border:0;background:var(--bg);color:var(--txt);border-radius:9px;padding:8px 10px;font-weight:700;font-size:13px;text-decoration:none}
   .tItem.hoje{outline:2px solid var(--ok)}
+  .hTag{margin-left:auto;align-self:center;font-size:13px;font-weight:700;color:var(--mute)}
+  .hTag.pend{background:var(--warn);color:#111;border-radius:999px;padding:3px 10px}
   details summary{margin-top:8px;color:var(--mute);font-size:13px;font-weight:700}
   h3{font-size:14px;margin:16px 0 4px;color:var(--mute);text-transform:uppercase;letter-spacing:.06em}
   input[type=text],input[type=password]{padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--txt);font-size:15px}
@@ -154,9 +171,9 @@
   .rCue .cTxt b{display:block;font-size:30px;font-weight:800;line-height:1}
   .rCue .cTxt span{font-size:14px;opacity:.85}
   .rFalta{text-align:right}
-  .rFalta span{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;opacity:.7}
+  .rFalta span{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.06em;opacity:.8}
   .rFalta b{font-size:24px;font-weight:800}
-  .rFalta small{display:block;font-size:12px;opacity:.8}
+  .rFalta small{display:block;font-size:13px;opacity:.85}
   .rBtns{position:absolute;right:14px;bottom:106px;z-index:500;display:flex;flex-direction:column;gap:8px}
   .rBtns button{border:0;border-radius:12px;background:rgba(11,12,14,.85);color:#fff;font-weight:800;padding:10px 12px;font-size:15px;min-width:52px}
   .rBtns button.on{background:#3aa0ff}
@@ -171,21 +188,21 @@
   .wTopo span{font-weight:800;color:var(--mute)}
   .wTopo b{flex:1;font-size:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .wBloco{background:var(--card);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px;min-width:0}
-  .wBloco .lb{font-size:12px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--mute)}
+  .wBloco .lb{font-size:13px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--mute)}
   .wBloco b{font-weight:800;line-height:1;letter-spacing:-.02em;font-size:clamp(28px,9vw,54px)}
   .wFalta b{font-size:clamp(60px,22vw,130px)}
   .wAlvo b{font-size:clamp(60px,22vw,130px)}
-  .wAlvo[data-estado="dentro"]{background:var(--z2);color:#fff}
+  .wAlvo[data-estado="dentro"]{background:var(--z2);color:var(--zt2)}
   .wAlvo[data-estado="acima"]{background:var(--bad);color:#fff}
-  .wAlvo[data-estado="abaixo"]{background:var(--z1);color:#fff}
-  .wAlvo[data-estado] .lb{color:rgba(255,255,255,.85)}
+  .wAlvo[data-estado="abaixo"]{background:var(--z1);color:var(--zt1)}
+  .wAlvo[data-estado="dentro"] .lb,.wAlvo[data-estado="acima"] .lb,.wAlvo[data-estado="abaixo"] .lb{color:inherit}
   .gauge{position:relative;width:88%;height:12px;border-radius:6px;background:rgba(127,127,127,.35);margin-top:8px}
   .gauge s{position:absolute;top:0;bottom:0;background:rgba(255,255,255,.75);border-radius:6px}
   .gauge i{position:absolute;top:-6px;width:4px;height:24px;margin-left:-2px;background:#000;border-radius:2px;box-shadow:0 0 0 2px #fff}
   .wLinha{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
   .wLinha b{font-size:clamp(24px,8vw,44px)}
   .wProx{background:var(--card);border-radius:12px;padding:10px 12px;font-weight:700;font-size:15px}
-  .wProx .lb{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--mute);margin-right:8px}
+  .wProx .lb{font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--mute);margin-right:8px}
   .wProg{height:8px;border-radius:4px;background:var(--line);overflow:hidden}
   .wProg i{display:block;height:100%;background:var(--acc);width:0}
 </style>
@@ -229,7 +246,8 @@
         <button class="btn" id="bGps">Ativar</button></div>
       <p class="hint">Ative antes de sair para o sinal estabilizar (±15 m ou melhor). A altitude também vem daqui.</p>
     </div>
-    <p class="hint">Mantenha a tela ligada: com a tela apagada o Android suspende o navegador e para de gravar.</p>
+    <p class="hint">Mantenha a tela ligada: com a tela apagada o Android suspende o navegador e para de gravar.
+      Se um sensor cair no meio do pedal, o app avisa uma vez, mostra "reconectando…" no campo e tenta de novo sozinho até voltar.</p>
   </div>
 </dialog>
 
@@ -259,8 +277,13 @@
 </dialog>
 
 <dialog id="dlgSync">
-  <div class="dh"><h2>Sincronização com o Garmin</h2><button class="x" data-close>Fechar</button></div>
+  <div class="dh"><h2>Sincronização com o computador</h2><button class="x" data-close>Fechar</button></div>
   <div class="db" id="syncBody"></div>
+</dialog>
+
+<dialog id="dlgHist">
+  <div class="dh"><h2>Histórico</h2><button class="x" data-close>Fechar</button></div>
+  <div class="db" id="histBody"></div>
 </dialog>
 
 <dialog id="dlgPick">
@@ -272,6 +295,7 @@
 <script src="app.js"></script>
 <script src="rotas.js"></script>
 <script src="treinos.js"></script>
+<script src="historico.js"></script>
 <script src="sync.js"></script>
 <script src="trechos.js"></script>
 <script src="estrada.js"></script>
